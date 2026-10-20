@@ -1,0 +1,182 @@
+{
+  "seed": 7,
+  "ours": {
+    "recall": 1.0,
+    "caught": 24,
+    "positives": 24,
+    "innocents_flagged": 9,
+    "by_role": {
+      "shop": 6,
+      "charity": 3
+    }
+  },
+  "ours_escalate_innocents": 0,
+  "baseline_matched_k": 10,
+  "baseline_at_matched": {
+    "recall": 1.0,
+    "caught": 24,
+    "positives": 24,
+    "innocents_flagged": 27,
+    "by_role": {
+      "customer": 6,
+      "friend_cycle": 9,
+      "shop": 6,
+      "charity": 3,
+      "newcomer": 3
+    }
+  },
+  "baseline_sweep": {
+    "5": {
+      "recall": 1.0,
+      "caught": 24,
+      "positives": 24,
+      "innocents_flagged": 29,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "newcomer": 5,
+        "shop": 6,
+        "charity": 3
+      }
+    },
+    "10": {
+      "recall": 1.0,
+      "caught": 24,
+      "positives": 24,
+      "innocents_flagged": 27,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "shop": 6,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "15": {
+      "recall": 0.917,
+      "caught": 22,
+      "positives": 24,
+      "innocents_flagged": 27,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "shop": 6,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "20": {
+      "recall": 0.917,
+      "caught": 22,
+      "positives": 24,
+      "innocents_flagged": 27,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "shop": 6,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "25": {
+      "recall": 0.875,
+      "caught": 21,
+      "positives": 24,
+      "innocents_flagged": 27,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "shop": 6,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "30": {
+      "recall": 0.833,
+      "caught": 20,
+      "positives": 24,
+      "innocents_flagged": 27,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "shop": 6,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "35": {
+      "recall": 0.792,
+      "caught": 19,
+      "positives": 24,
+      "innocents_flagged": 27,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "shop": 6,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "40": {
+      "recall": 0.75,
+      "caught": 18,
+      "positives": 24,
+      "innocents_flagged": 25,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "shop": 4,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "45": {
+      "recall": 0.667,
+      "caught": 16,
+      "positives": 24,
+      "innocents_flagged": 21,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "50": {
+      "recall": 0.667,
+      "caught": 16,
+      "positives": 24,
+      "innocents_flagged": 21,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "55": {
+      "recall": 0.667,
+      "caught": 16,
+      "positives": 24,
+      "innocents_flagged": 21,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "charity": 3,
+        "newcomer": 3
+      }
+    },
+    "60": {
+      "recall": 0.667,
+      "caught": 16,
+      "positives": 24,
+      "innocents_flagged": 21,
+      "by_role": {
+        "customer": 6,
+        "friend_cycle": 9,
+        "charity": 3,
+        "newcomer": 3
+      }
+    }
+  }
+}
