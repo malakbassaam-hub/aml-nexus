@@ -18,7 +18,7 @@ class Core(unittest.TestCase):
 
     def test_has_all_categories(self):
         self.assertTrue({"normal", "legit_hub", "laundering", "external"} <= set(self.acc.label))
-        self.assertTrue({"collector", "stealth_collector", "evasive_collector", "cycle_member", "shop", "charity", "friend_cycle", "promo_biz", "fundraiser"} <= set(self.acc.role))
+        self.assertTrue({"collector", "stealth_collector", "evasive_collector", "slow_collector", "cycle_member", "shop", "charity", "friend_cycle", "promo_biz", "fundraiser", "new_business"} <= set(self.acc.role))
 
     def test_finds_every_planted_cycle_and_no_friend_loop(self):
         found = [set(c["nodes"]) for c in find_cycles(self.tx, self.acc)]
@@ -34,8 +34,15 @@ class Core(unittest.TestCase):
 
     def test_legit_hubs_never_reach_freeze_level(self):
         for a, r in self.role.items():
-            if r in ("shop", "charity", "payroll", "promo_biz", "fundraiser"):
+            if r in ("shop", "charity", "payroll", "promo_biz", "fundraiser", "new_business"):
                 self.assertNotEqual(self.tier.get(a, "Clear"), "Escalate", a)
+
+    def test_slow_drip_collectors_open_a_watch(self):
+        drip = [a for a, r in self.role.items() if r == "slow_collector"]
+        hit = [a for a in drip if self.tier.get(a) in ("Monitor", "Escalate")]
+        self.assertGreaterEqual(len(hit), 2)
+        kinds = self.cases.set_index("account")["kind"].to_dict()
+        self.assertTrue(all(kinds[a] == "slow_accumulation" for a in hit))
 
     def test_shops_show_counter_evidence(self):
         shops = self.cases[self.cases.account.str.startswith("SHOP")]
