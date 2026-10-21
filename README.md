@@ -11,6 +11,11 @@ shows evidence *for and against* each suspicion, and recommends a graduated resp
 ## Run
 ```
 pip install -r requirements.txt
+streamlit run app.py      # dashboard (demo scenarios in the sidebar)
+```
+Tests / evaluation:
+```
+pip install -r requirements.txt
 python -m unittest discover -s tests -t .
 python -m src.evaluate
 ```
@@ -21,7 +26,8 @@ python -m src.evaluate
 - [x] Evidence Watch + keep-open record (purpose, duration cap, review cadence, auto-expiry), tamper-evident audit log
 - [x] Automation-bias guard (reviewer agreement, time, counter-evidence opened) and friction before confirming an escalation
 - [x] Multi-seed evaluation: calibrated on dev seeds, reported on held-out seeds (`docs/results.json`)
-- [ ] Streamlit dashboard, PayPal Sandbox webhook, LLM case summary (summarizes existing evidence only)
+- [x] Streamlit dashboard: case queue, Evidence Watch tab, reviewer-quality tab, audit log, demo scenarios
+- [ ] PayPal Sandbox webhook, LLM case summary (summarizes existing evidence only)
 
 ## Honest results (synthetic data, 10 held-out seeds)
 - Planted laundering accounts flagged for Monitor/Escalate: ~99.7% (worst seed 96.6%).
