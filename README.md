@@ -24,9 +24,15 @@ python -m src.evaluate
 - [ ] Streamlit dashboard, PayPal Sandbox webhook, LLM case summary (summarizes existing evidence only)
 
 ## Honest results (synthetic data, 10 held-out seeds)
-- Planted laundering accounts flagged for Monitor/Escalate: ~88% on average (worst seed 83%). Evasive rings are often missed.
-- Innocent accounts at freeze-level (Escalate): 0. Innocents sent to Verify: ~10 per seed; to Monitor: ~3 per seed.
-- A naive count-based rule at matched detection rate flagged ~31 innocents per seed, and could not reach our detection rate in 6 of 10 seeds.
-- Limits: the data generator and detectors were written by the same authors; thresholds are policy parameters, not legal advice or validated limits.
+- Planted laundering accounts flagged for Monitor/Escalate: ~99.7% (worst seed 96.6%).
+- Innocent accounts at freeze-level (Escalate): 0. Innocents sent to Verify: ~10 per seed; to Monitor: ~6 per seed (mostly charities and emergency fundraisers).
+- A naive count-based rule at matched detection rate flagged ~35 innocents per seed, and could not reach our detection rate in 6 of 10 seeds.
+
+## Known limits (please read)
+- The data generator and the detectors were written by the same authors, so these numbers are optimistic. They show the pipeline works, not that it will work on real data.
+- The slow-accumulation rule assumes the receiving account is young (<45 days). In a stress test where criminals use aged accounts, evasive and slow-drip rings are almost never flagged.
+- Detection of evasive rings is sensitive to the counter-evidence cutoff (0.35 vs 0.4 changes it sharply), which is a sign of brittleness.
+- Legitimate fast-payout fundraisers and campaign-style charities still reach Monitor; a human reviewer must clear them.
+- Thresholds are policy parameters, not legal advice or validated limits.
 
 ## Never commit real API keys. Use `.env` (see `.gitignore`).
