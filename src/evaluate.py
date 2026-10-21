@@ -7,7 +7,7 @@ from .data_gen import generate
 from .detectors import baseline_max_counts, baseline_cycle_members
 from .risk import build_cases, recommend
 
-POS = {"collector", "stealth_collector", "evasive_collector", "cycle_member"}
+POS = {"collector", "stealth_collector", "evasive_collector", "slow_collector", "cycle_member"}
 DEV, HELD = list(range(1, 5)), list(range(100, 110))
 GRID = [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 1.01]  # 1.01 = no counter-evidence gating (old behaviour)
 

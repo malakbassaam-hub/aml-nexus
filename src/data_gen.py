@@ -137,10 +137,20 @@ def generate(seed: int = 7):
                 tx(customer(day, 0.55), fid, amt, day)
         tx(fid, pick(ext), 0.7 * raised, start + 4)
 
-    # (b2) evasive laundering: no structuring, recruited old accounts, prior small payments, slower pass-through
+    # (a3) a young legitimate business: new account, many unrelated payers, fairly large tickets
+    for i in range(2):
+        nid, start = f"NEWBIZ{i}", int(rng.integers(20, 55))
+        acct(nid, start - rng.integers(5, 25), "legit_hub", "new_business")
+        for _ in range(int(rng.integers(18, 26))):
+            tx(pick(old), nid, min(rng.lognormal(6.8, 0.5), 4000), start + rng.integers(0, 25))
+        for wk in range(3):
+            tx(nid, pick(ext), rng.lognormal(8.0, 0.3), start + 7 * (wk + 1))
+
+    # (b2) evasive laundering: no structuring, recruited old accounts, small 'seed' payments after opening, slower pass-through
     for r in range(3):
         start, col, total = int(rng.integers(25, 65)), f"EVA{r}", 0.0
-        acct(col, start - rng.integers(3, 15), "laundering", "evasive_collector")
+        opened_col = start - int(rng.integers(3, 15))
+        acct(col, opened_col, "laundering", "evasive_collector")
         for j in range(12):
             if j < 5:
                 m = f"EMULE{r}_{j}"
@@ -148,11 +158,28 @@ def generate(seed: int = 7):
             else:
                 m = pick(old)
                 if j < 8:
-                    tx(m, col, rng.uniform(50, 200), start - rng.integers(15, 25))
+                    tx(m, col, rng.uniform(50, 200), rng.integers(opened_col, start))
             amt = rng.uniform(0.2, 0.7) * THRESHOLD
             total += amt
             tx(m, col, amt, start + rng.integers(0, 6))
         tx(col, pick(ext), 0.35 * total, start + 8)
+
+    # (b3) slow-drip laundering: dispersed payments over ~25 days into a young account, two late payouts
+    for r in range(3):
+        start, col, total = int(rng.integers(25, 50)), f"DRIP{r}", 0.0
+        acct(col, start - rng.integers(3, 12), "laundering", "slow_collector")
+        for j in range(12):
+            if j < 5:
+                m = f"DMULE{r}_{j}"
+                acct(m, start - rng.integers(1, 10), "laundering", "mule")
+            else:
+                m = pick(old)
+            for _ in range(int(rng.integers(1, 3))):
+                amt = rng.uniform(0.15, 0.5) * THRESHOLD
+                total += amt
+                tx(m, col, amt, start + rng.integers(0, 25))
+        tx(col, pick(ext), 0.2 * total, start + 27)
+        tx(col, pick(ext), 0.2 * total, start + 29)
 
     accounts = pd.DataFrame(A)
     txs = pd.DataFrame(X).sort_values("day", kind="stable").reset_index(drop=True)

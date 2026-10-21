@@ -2,7 +2,7 @@
 import pandas as pd
 from .detectors import fan_in_scan, find_cycles, _opened
 
-PARAMS = {"c_mon": 0.35}  # policy parameter: Monitor needs counter-evidence below this; chosen on DEV seeds only (see evaluate.py)
+PARAMS = {"c_mon": 0.4}  # policy parameter: Monitor needs counter-evidence below this; chosen on DEV seeds only (see evaluate.py)
 
 
 def recommend(s, c, c_mon=None):

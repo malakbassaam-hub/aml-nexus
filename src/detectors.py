@@ -6,6 +6,7 @@ import pandas as pd
 from .data_gen import THRESHOLD
 
 WIN, TAIL, WARMUP = 7, 3, 14  # first WARMUP days are treated as history only
+SLOW_WIN, YOUNG_DAYS, SLOW_CAP = 30, 45, 0.74  # slow-accumulation typology can open a watch, never escalate alone
 
 
 def _opened(accounts):
@@ -47,6 +48,36 @@ def fan_in_scan(tx, accounts, min_senders=5):
                 best = dict(account=a, kind="fan_in", suspicion=round(sus, 3),
                             counter=round(0.4 * repeat + 0.3 * (1 - new_share) + 0.3 * (1 - pas), 3),
                             supporting=sup, counter_evidence=cnt, window_start=int(s))
+        # slow accumulation into a young account: 30-day horizon, many senders, large tickets, funnel shape
+        for s in sorted(d for d in inc.day.unique() if d >= WARMUP and d - opened[a] <= YOUNG_DAYS):
+            w = inc[(inc.day >= s) & (inc.day < s + SLOW_WIN)]
+            snd = w.groupby("src").day.min()
+            total_in = w.amount.sum()
+            if len(snd) < 8 or total_in < 2 * THRESHOLD:
+                continue
+            outw = None if o is None else o[(o.day >= s) & (o.day < s + SLOW_WIN + TAIL)]
+            out = 0.0 if outw is None else outw.amount.sum()
+            nrecv = 0 if outw is None else outw.dst.nunique()
+            if len(snd) / max(1, nrecv) < 4:
+                continue
+            new_share = float(np.mean([(d - opened[x]) < 30 for x, d in snd.items()]))
+            repeat = float(np.mean([x in set(inc.loc[inc.day < s, "src"]) for x in snd.index]))
+            big = float((w.amount >= 0.15 * THRESHOLD).mean())
+            pas = min(out / total_in, 1.0)
+            sus = min(0.3 + 0.25 * min(total_in / (4 * THRESHOLD), 1) + 0.25 * big + 0.2 * pas, SLOW_CAP)
+            if best is None or sus > best["suspicion"]:
+                cnt = []
+                if repeat >= 0.4: cnt.append(f"{repeat:.0%} of senders are established counterparties")
+                if new_share <= 0.5: cnt.append(f"{1 - new_share:.0%} of senders are long-standing accounts")
+                if pas <= 0.5: cnt.append(f"{1 - pas:.0%} of inflow was retained, not passed on")
+                if big < 0.3: cnt.append("payments are mostly small, ordinary-sized tickets")
+                best = dict(account=a, kind="slow_accumulation", suspicion=round(sus, 3),
+                            counter=round(0.4 * repeat + 0.3 * (1 - new_share) + 0.3 * (1 - pas), 3),
+                            supporting=[f"account opened {int(w.day.min() - opened[a])} days before this inflow began",
+                                        f"{len(snd)} distinct senders paid {total_in:,.0f} within {SLOW_WIN} days",
+                                        f"{big:.0%} of payments are large (>= {int(0.15 * THRESHOLD):,})",
+                                        f"funnel shape: {len(snd)} senders -> {nrecv} recipient(s)"],
+                            counter_evidence=cnt, window_start=int(s))
         if best:
             rows.append(best)
     return pd.DataFrame(rows)
