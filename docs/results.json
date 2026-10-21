@@ -1,182 +1,217 @@
 {
-  "seed": 7,
-  "ours": {
-    "recall": 1.0,
-    "caught": 24,
-    "positives": 24,
-    "innocents_flagged": 9,
-    "by_role": {
-      "shop": 6,
-      "charity": 3
+  "chosen_c_mon": 0.35,
+  "dev_grid": {
+    "0.15": {
+      "recall": 0.83,
+      "inn_verify": 13.25,
+      "inn_monitor": 0,
+      "inn_escalate": 0,
+      "base_recall": 0.724,
+      "base_inn": 31.5,
+      "recall_min": 0.792,
+      "baseline_could_not_match": 3
+    },
+    "0.2": {
+      "recall": 0.83,
+      "inn_verify": 13,
+      "inn_monitor": 0.25,
+      "inn_escalate": 0,
+      "base_recall": 0.724,
+      "base_inn": 31.5,
+      "recall_min": 0.792,
+      "baseline_could_not_match": 3
+    },
+    "0.25": {
+      "recall": 0.859,
+      "inn_verify": 12.25,
+      "inn_monitor": 1,
+      "inn_escalate": 0,
+      "base_recall": 0.776,
+      "base_inn": 31.5,
+      "recall_min": 0.833,
+      "baseline_could_not_match": 3
+    },
+    "0.3": {
+      "recall": 0.859,
+      "inn_verify": 11,
+      "inn_monitor": 2.25,
+      "inn_escalate": 0,
+      "base_recall": 0.776,
+      "base_inn": 31.5,
+      "recall_min": 0.833,
+      "baseline_could_not_match": 3
+    },
+    "0.35": {
+      "recall": 0.868,
+      "inn_verify": 10,
+      "inn_monitor": 3.25,
+      "inn_escalate": 0,
+      "base_recall": 0.776,
+      "base_inn": 31.5,
+      "recall_min": 0.833,
+      "baseline_could_not_match": 3
+    },
+    "0.4": {
+      "recall": 0.868,
+      "inn_verify": 6.75,
+      "inn_monitor": 6.5,
+      "inn_escalate": 0,
+      "base_recall": 0.776,
+      "base_inn": 31.5,
+      "recall_min": 0.833,
+      "baseline_could_not_match": 3
+    },
+    "0.45": {
+      "recall": 0.868,
+      "inn_verify": 5,
+      "inn_monitor": 8.25,
+      "inn_escalate": 0,
+      "base_recall": 0.776,
+      "base_inn": 31.5,
+      "recall_min": 0.833,
+      "baseline_could_not_match": 3
+    },
+    "1.01": {
+      "recall": 0.868,
+      "inn_verify": 2.25,
+      "inn_monitor": 11,
+      "inn_escalate": 0,
+      "base_recall": 0.776,
+      "base_inn": 31.5,
+      "recall_min": 0.833,
+      "baseline_could_not_match": 3
     }
   },
-  "ours_escalate_innocents": 0,
-  "baseline_matched_k": 10,
-  "baseline_at_matched": {
-    "recall": 1.0,
-    "caught": 24,
-    "positives": 24,
-    "innocents_flagged": 27,
-    "by_role": {
-      "customer": 6,
-      "friend_cycle": 9,
-      "shop": 6,
-      "charity": 3,
-      "newcomer": 3
-    }
+  "heldout_chosen": {
+    "recall": 0.882,
+    "inn_verify": 10.4,
+    "inn_monitor": 3.2,
+    "inn_escalate": 0,
+    "base_recall": 0.818,
+    "base_inn": 31.2,
+    "recall_min": 0.833,
+    "baseline_could_not_match": 6
   },
-  "baseline_sweep": {
-    "5": {
-      "recall": 1.0,
-      "caught": 24,
-      "positives": 24,
-      "innocents_flagged": 29,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "newcomer": 5,
-        "shop": 6,
-        "charity": 3
-      }
+  "heldout_no_gating": {
+    "recall": 0.882,
+    "inn_verify": 2.6,
+    "inn_monitor": 11,
+    "inn_escalate": 0,
+    "base_recall": 0.818,
+    "base_inn": 31.2,
+    "recall_min": 0.833,
+    "baseline_could_not_match": 6
+  },
+  "heldout_per_seed": [
+    {
+      "seed": 100,
+      "recall": 0.8846153846153846,
+      "inn_verify": 9,
+      "inn_monitor": 4,
+      "inn_escalate": 0,
+      "base_k": 10,
+      "base_recall": 1.0,
+      "base_inn": 32,
+      "base_reached": true
     },
-    "10": {
-      "recall": 1.0,
-      "caught": 24,
-      "positives": 24,
-      "innocents_flagged": 27,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "shop": 6,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 101,
+      "recall": 0.8888888888888888,
+      "inn_verify": 11,
+      "inn_monitor": 4,
+      "inn_escalate": 0,
+      "base_k": 5,
+      "base_recall": 0.6296296296296297,
+      "base_inn": 32,
+      "base_reached": false
     },
-    "15": {
-      "recall": 0.917,
-      "caught": 22,
-      "positives": 24,
-      "innocents_flagged": 27,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "shop": 6,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 102,
+      "recall": 0.8846153846153846,
+      "inn_verify": 11,
+      "inn_monitor": 3,
+      "inn_escalate": 0,
+      "base_k": 10,
+      "base_recall": 1.0,
+      "base_inn": 29,
+      "base_reached": true
     },
-    "20": {
-      "recall": 0.917,
-      "caught": 22,
-      "positives": 24,
-      "innocents_flagged": 27,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "shop": 6,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 103,
+      "recall": 0.8846153846153846,
+      "inn_verify": 13,
+      "inn_monitor": 1,
+      "inn_escalate": 0,
+      "base_k": 5,
+      "base_recall": 0.8076923076923077,
+      "base_inn": 27,
+      "base_reached": false
     },
-    "25": {
-      "recall": 0.875,
-      "caught": 21,
-      "positives": 24,
-      "innocents_flagged": 27,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "shop": 6,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 104,
+      "recall": 0.8571428571428571,
+      "inn_verify": 11,
+      "inn_monitor": 4,
+      "inn_escalate": 0,
+      "base_k": 5,
+      "base_recall": 0.6428571428571429,
+      "base_inn": 28,
+      "base_reached": false
     },
-    "30": {
-      "recall": 0.833,
-      "caught": 20,
-      "positives": 24,
-      "innocents_flagged": 27,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "shop": 6,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 105,
+      "recall": 0.9310344827586207,
+      "inn_verify": 12,
+      "inn_monitor": 2,
+      "inn_escalate": 0,
+      "base_k": 5,
+      "base_recall": 0.6551724137931034,
+      "base_inn": 33,
+      "base_reached": false
     },
-    "35": {
-      "recall": 0.792,
-      "caught": 19,
-      "positives": 24,
-      "innocents_flagged": 27,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "shop": 6,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 106,
+      "recall": 0.88,
+      "inn_verify": 9,
+      "inn_monitor": 4,
+      "inn_escalate": 0,
+      "base_k": 10,
+      "base_recall": 1.0,
+      "base_inn": 33,
+      "base_reached": true
     },
-    "40": {
-      "recall": 0.75,
-      "caught": 18,
-      "positives": 24,
-      "innocents_flagged": 25,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "shop": 4,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 107,
+      "recall": 0.8518518518518519,
+      "inn_verify": 8,
+      "inn_monitor": 4,
+      "inn_escalate": 0,
+      "base_k": 5,
+      "base_recall": 0.8148148148148148,
+      "base_inn": 37,
+      "base_reached": false
     },
-    "45": {
-      "recall": 0.667,
-      "caught": 16,
-      "positives": 24,
-      "innocents_flagged": 21,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 108,
+      "recall": 0.8333333333333334,
+      "inn_verify": 10,
+      "inn_monitor": 2,
+      "inn_escalate": 0,
+      "base_k": 10,
+      "base_recall": 1.0,
+      "base_inn": 31,
+      "base_reached": true
     },
-    "50": {
-      "recall": 0.667,
-      "caught": 16,
-      "positives": 24,
-      "innocents_flagged": 21,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "charity": 3,
-        "newcomer": 3
-      }
-    },
-    "55": {
-      "recall": 0.667,
-      "caught": 16,
-      "positives": 24,
-      "innocents_flagged": 21,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "charity": 3,
-        "newcomer": 3
-      }
-    },
-    "60": {
-      "recall": 0.667,
-      "caught": 16,
-      "positives": 24,
-      "innocents_flagged": 21,
-      "by_role": {
-        "customer": 6,
-        "friend_cycle": 9,
-        "charity": 3,
-        "newcomer": 3
-      }
+    {
+      "seed": 109,
+      "recall": 0.9259259259259259,
+      "inn_verify": 10,
+      "inn_monitor": 4,
+      "inn_escalate": 0,
+      "base_k": 5,
+      "base_recall": 0.6296296296296297,
+      "base_inn": 30,
+      "base_reached": false
     }
-  }
+  ]
 }
