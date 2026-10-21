@@ -118,6 +118,42 @@ def generate(seed: int = 7):
             amt *= rng.uniform(0.96, 0.995)
             day += int(rng.integers(0, 2))
 
+    # (a2) harder look-alikes
+    for i in range(2):  # sign-up promotion: many brand-new customers pay a legitimate business
+        bid = f"PROMO{i}"
+        acct(bid, -rng.integers(300, 1500), "legit_hub", "promo_biz")
+        start = int(rng.integers(20, 60))
+        for day in range(start, start + 6):
+            for _ in range(int(rng.integers(3, 6))):
+                tx(customer(day, 0.9), bid, min(rng.lognormal(3.5, 0.5), 400), day)
+    for i in range(2):  # emergency fundraiser: new donors, fast payout (looks a lot like pass-through)
+        fid = f"FUND{i}"
+        acct(fid, -rng.integers(100, 800), "legit_hub", "fundraiser")
+        start, raised = int(rng.integers(20, 60)), 0.0
+        for day in range(start, start + 3):
+            for _ in range(int(rng.integers(15, 30))):
+                amt = float(np.clip(rng.lognormal(4.0, 0.6), 5, 500))
+                raised += amt
+                tx(customer(day, 0.55), fid, amt, day)
+        tx(fid, pick(ext), 0.7 * raised, start + 4)
+
+    # (b2) evasive laundering: no structuring, recruited old accounts, prior small payments, slower pass-through
+    for r in range(3):
+        start, col, total = int(rng.integers(25, 65)), f"EVA{r}", 0.0
+        acct(col, start - rng.integers(3, 15), "laundering", "evasive_collector")
+        for j in range(12):
+            if j < 5:
+                m = f"EMULE{r}_{j}"
+                acct(m, start - rng.integers(1, 10), "laundering", "mule")
+            else:
+                m = pick(old)
+                if j < 8:
+                    tx(m, col, rng.uniform(50, 200), start - rng.integers(15, 25))
+            amt = rng.uniform(0.2, 0.7) * THRESHOLD
+            total += amt
+            tx(m, col, amt, start + rng.integers(0, 6))
+        tx(col, pick(ext), 0.35 * total, start + 8)
+
     accounts = pd.DataFrame(A)
     txs = pd.DataFrame(X).sort_values("day", kind="stable").reset_index(drop=True)
     return accounts, txs
