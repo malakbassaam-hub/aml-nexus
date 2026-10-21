@@ -18,7 +18,7 @@ class Core(unittest.TestCase):
 
     def test_has_all_categories(self):
         self.assertTrue({"normal", "legit_hub", "laundering", "external"} <= set(self.acc.label))
-        self.assertTrue({"collector", "stealth_collector", "cycle_member", "shop", "charity", "friend_cycle"} <= set(self.acc.role))
+        self.assertTrue({"collector", "stealth_collector", "evasive_collector", "cycle_member", "shop", "charity", "friend_cycle", "promo_biz", "fundraiser"} <= set(self.acc.role))
 
     def test_finds_every_planted_cycle_and_no_friend_loop(self):
         found = [set(c["nodes"]) for c in find_cycles(self.tx, self.acc)]
@@ -34,7 +34,7 @@ class Core(unittest.TestCase):
 
     def test_legit_hubs_never_reach_freeze_level(self):
         for a, r in self.role.items():
-            if r in ("shop", "charity", "payroll"):
+            if r in ("shop", "charity", "payroll", "promo_biz", "fundraiser"):
                 self.assertNotEqual(self.tier.get(a, "Clear"), "Escalate", a)
 
     def test_shops_show_counter_evidence(self):
@@ -44,6 +44,8 @@ class Core(unittest.TestCase):
     def test_tier_boundaries(self):
         self.assertEqual(recommend(0.9, 0.1), "Escalate")
         self.assertEqual(recommend(0.9, 0.5), "Monitor")
+        self.assertEqual(recommend(0.55, 0.2), "Monitor")
+        self.assertEqual(recommend(0.55, 0.5), "Verify")
         self.assertEqual(recommend(0.55, 0.7), "Verify")
         self.assertEqual(recommend(0.4, 0.7), "Clear")
         self.assertEqual(recommend(0.4, 0.2), "Verify")
