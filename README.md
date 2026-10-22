@@ -27,7 +27,8 @@ python -m src.evaluate
 - [x] Automation-bias guard (reviewer agreement, time, counter-evidence opened) and friction before confirming an escalation
 - [x] Multi-seed evaluation: calibrated on dev seeds, reported on held-out seeds (`docs/results.json`)
 - [x] Streamlit dashboard: case queue, Evidence Watch tab, reviewer-quality tab, audit log, demo scenarios
-- [ ] PayPal Sandbox webhook, LLM case summary (summarizes existing evidence only)
+- [x] PayPal Sandbox (read-only): OAuth2 + Transaction Search API, normalised into the detector schema
+- [ ] LLM case summary (summarizes existing evidence only)
 
 ## Honest results (synthetic data, 10 held-out seeds)
 - Planted laundering accounts flagged for Monitor/Escalate: ~99.7% (worst seed 96.6%).
@@ -42,3 +43,11 @@ python -m src.evaluate
 - Thresholds are policy parameters, not legal advice or validated limits.
 
 ## Never commit real API keys. Use `.env` (see `.gitignore`).
+
+## PayPal Sandbox setup
+1. In the PayPal developer dashboard (Sandbox), open your app and enable **Transaction Search**; save. (If the app was already used it can take hours to activate.)
+2. Streamlit Cloud: App settings > Secrets, paste the `[paypal]` block from `.streamlit/secrets.toml.example` with your **sandbox** client id/secret. Locally: copy it to `.streamlit/secrets.toml` (git-ignored).
+3. Send a few test payments between sandbox accounts; they can take up to 3 hours to appear. Then use the **PayPal Sandbox** tab.
+- The integration is read-only and refuses any non-sandbox URL.
+- Streamlit cannot receive webhooks, so the dashboard pulls transactions instead.
+- The live sandbox feed is small. Large scenarios are synthetic and are labelled as such. PayPal does not expose account age, so age-based signals are neutral on live data.

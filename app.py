@@ -2,10 +2,13 @@
 All data is synthetic. The system recommends; a human decides."""
 import json
 import time
+from datetime import timedelta
 
 import pandas as pd
 import streamlit as st
 
+from src.paypal_client import (SAMPLE_RESPONSE, PayPalConfig, analyze, default_origin, fetch_last_days, get_token,
+                               to_edges)
 from src.service import SCENARIOS, TIER_COLORS, Workbench
 from src.watch import CAPS
 
@@ -59,8 +62,8 @@ with st.sidebar:
 
 q = wb.queue(reveal)
 n_watch = sum(1 for a in wb.watches if a not in wb.closed)
-tab_q, tab_w, tab_r, tab_a = st.tabs(
-    ["🔎 Case queue", f"🛰️ Evidence Watch ({n_watch})", "📊 Reviewer quality", "🧾 Audit log"])
+tab_q, tab_w, tab_r, tab_p, tab_a = st.tabs(
+    ["🔎 Case queue", f"🛰️ Evidence Watch ({n_watch})", "📊 Reviewer quality", "🔌 PayPal Sandbox", "🧾 Audit log"])
 
 # ------------------------------------------------------------- case queue
 with tab_q:
@@ -137,7 +140,10 @@ with tab_w:
             right.progress(min(1.0, max(0.0, (wb.now - w.ko.start_day) / span)),
                            text=f"{max(0, w.ko.end_day - wb.now)} days left")
             traj = wb.trajectory(acct)
-            st.line_chart(traj.set_index("day")[["suspicion", "counter"]], color=["#D93025", "#1E8E3E"])
+            if len(traj) < 2:
+                st.caption("Only one observation so far. Press “Advance +7 days” in the sidebar to watch the evidence evolve.")
+            else:
+                st.line_chart(traj.set_index("day")[["suspicion", "counter"]], color=["#D93025", "#1E8E3E"])
             p = wb.packet(acct)
             k1, k2, k3 = st.columns(3)
             k1.metric("Recommendation at start", p["start"]["tier"])
@@ -199,6 +205,73 @@ with tab_r:
             + ("  →  POSSIBLE RUBBER-STAMPING" if r["possible_rubber_stamping"] else ""))
     if rep:
         st.dataframe(pd.DataFrame(rep).T, use_container_width=True)
+
+# ------------------------------------------------------------ PayPal Sandbox
+with tab_p:
+    st.markdown("### PayPal Sandbox connection (read-only)")
+    st.caption("Sandbox credentials only, kept in Streamlit Secrets. No real money and no real customers. "
+               "Transactions can take up to 3 hours to appear in PayPal's Transaction Search.")
+    try:
+        creds = dict(st.secrets["paypal"])
+    except Exception:
+        creds = None
+    if not creds:
+        st.warning("No PayPal credentials found in Secrets. Add them in the app settings (see the README). "
+                   "You can still try the offline sample below.")
+    c1, c2, c3 = st.columns(3)
+    if c1.button("1 · Connect to Sandbox", key="pp_connect", disabled=creds is None, use_container_width=True):
+        try:
+            st.session_state["pp"] = get_token(PayPalConfig(creds["client_id"], creds["client_secret"]))
+            wb.audit.add(reviewer, "paypal_connected", "sandbox", {"search_scope": st.session_state["pp"]["has_search_scope"]}, wb.now)
+        except Exception as e:
+            st.error(str(e))
+    pp = st.session_state.get("pp")
+    if pp:
+        st.success(f"Connected to PayPal Sandbox. Token valid for about {pp['expires_in'] // 3600} hours.")
+        if not pp["has_search_scope"]:
+            st.warning("This token does not include the Transaction Search scope. Enable 'Transaction Search' for the "
+                       "sandbox app in the PayPal developer dashboard (it can take hours to activate).")
+    if c2.button("2 · Fetch last 30 days", key="pp_fetch", disabled=not pp, use_container_width=True):
+        try:
+            details, holder, start = fetch_last_days(PayPalConfig(creds["client_id"], creds["client_secret"]), pp["token"], 30)
+            edges, skipped = to_edges(details, holder, default_origin(start))
+            st.session_state["pp_data"] = dict(edges=edges, skipped=skipped, raw=len(details), source="live PayPal Sandbox")
+            wb.audit.add(reviewer, "paypal_fetch", "sandbox", {"records": len(details), "used": len(edges)}, wb.now)
+        except Exception as e:
+            st.error(str(e))
+    if c3.button("Use offline sample (not live)", key="pp_sample", use_container_width=True):
+        from datetime import datetime, timezone
+        start = datetime(2026, 10, 3, tzinfo=timezone.utc)
+        edges, skipped = to_edges(SAMPLE_RESPONSE["transaction_details"], SAMPLE_RESPONSE["account_number"], default_origin(start))
+        st.session_state["pp_data"] = dict(edges=edges, skipped=skipped, raw=len(SAMPLE_RESPONSE["transaction_details"]),
+                                           source="offline sample in PayPal's format (NOT a live call)")
+    data = st.session_state.get("pp_data")
+    if data:
+        edges = data["edges"]
+        st.info(f"Source: {data['source']}")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Records received", data["raw"])
+        m2.metric("Used for analysis", len(edges))
+        m3.metric("Counterparties", len(set(edges.src) | set(edges.dst)) - 1 if len(edges) else 0)
+        if any(data["skipped"].values()):
+            st.caption(f"Skipped: {data['skipped']}")
+        if edges.empty:
+            st.info("No completed USD transactions in this window yet. Send a few test payments between your sandbox accounts "
+                    "and try again later.")
+        else:
+            st.dataframe(edges, use_container_width=True, hide_index=True)
+            if st.button("3 · Analyze with AML-Nexus", key="pp_analyze"):
+                res = analyze(edges)
+                if res.empty:
+                    st.success("No suspicious pattern in this feed. (A small sandbox feed rarely has one; the demo "
+                               "scenarios use synthetic data.)")
+                else:
+                    st.dataframe(res[["account", "tier", "suspicion", "counter", "kind"]], use_container_width=True, hide_index=True)
+                    for _, r in res.iterrows():
+                        st.markdown(f"**{r.account}** {badge(r.tier)}", unsafe_allow_html=True)
+                        st.markdown("- " + "\n- ".join(r.supporting))
+                st.caption("PayPal does not expose account age, so age-based signals are neutral on live data. "
+                           "Direction is inferred from the sign of each amount.")
 
 # ---------------------------------------------------------------- audit log
 with tab_a:
