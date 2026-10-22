@@ -65,7 +65,7 @@ class EvidenceWatch:
         for _ in range(2):  # 2 undirected hops cover loops up to length 5
             hit = t[t.src.isin(nb) | t.dst.isin(nb)]
             nb |= set(hit.src) | set(hit.dst)
-        cs = build_cases(t[t.src.isin(nb) & t.dst.isin(nb)], self.acc)
+        cs = build_cases(t[t.src.isin(nb) & t.dst.isin(nb)], self.acc, now=day)
         row = cs[cs.account == a]
         if row.empty:
             return dict(day=day, suspicion=0.0, counter=0.0, tier="Clear", supporting=[], counter_evidence=[])

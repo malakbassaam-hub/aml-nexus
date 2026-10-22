@@ -36,7 +36,7 @@ class Workbench:
     # ---- queue and cases -------------------------------------------------
     def cases_at(self, day):
         if day not in self._cases:
-            self._cases[day] = build_cases(self.tx[self.tx.day <= day], self.acc)
+            self._cases[day] = build_cases(self.tx[self.tx.day <= day], self.acc, now=day)
         return self._cases[day]
 
     def queue(self, reveal=False):

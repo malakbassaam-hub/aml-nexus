@@ -17,9 +17,9 @@ def recommend(s, c, c_mon=None):
     return "Clear"
 
 
-def build_cases(tx, accounts, c_mon=None):
+def build_cases(tx, accounts, c_mon=None, now=None):
     rows, opened = [], _opened(accounts)
-    fi = fan_in_scan(tx, accounts)
+    fi = fan_in_scan(tx, accounts, now=now)
     if len(fi):
         rows += fi.to_dict("records")
     for cy in find_cycles(tx, accounts):
