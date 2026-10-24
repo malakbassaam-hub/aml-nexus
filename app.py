@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 from src.paypal_client import (SAMPLE_RESPONSE, PayPalConfig, analyze, default_origin, fetch_last_days, get_token,
                                to_edges)
 from src.explain import AIConfig, facts_from_case, facts_from_packet, summarize
-from src.flowmap import build_geometry, to_svg
+from src.flowmap import FRAME, build_geometry, to_svg, wrap_html
 from src.service import SCENARIOS, TIER_COLORS, Workbench
 from src.why import breakdown, decision_path, what_would_change
 from src.watch import CAPS
@@ -48,7 +48,7 @@ except Exception:
 
 def flow_map(account, kind, day, tier):
     geo = build_geometry(wb.tx, wb.acc, account, day, as_cycle=(kind == "cycle"))
-    components.html(to_svg(geo, TIER_COLORS.get(tier, "#003087")), height=590)
+    components.html(wrap_html(to_svg(geo, TIER_COLORS.get(tier, "#003087"))), height=FRAME)
 
 
 def bars(items, color, total):
@@ -198,8 +198,8 @@ with tab_w:
             p = wb.packet(acct)
             k1, k2, k3 = st.columns(3)
             k1.metric("Recommendation at start", p["start"]["tier"])
-            k2.metric("Recommendation now", p["now"]["tier"],
-                      f"{p['now']['suspicion'] - p['start']['suspicion']:+.2f} suspicion")
+            dlt = p["now"]["suspicion"] - p["start"]["suspicion"]
+            k2.metric("Recommendation now", p["now"]["tier"], None if abs(dlt) < 0.005 else f"{dlt:+.2f} suspicion")
             k3.metric("Counter-evidence now", f"{p['now']['counter']:.2f}")
             e1, e2 = st.columns(2)
             with e1:
