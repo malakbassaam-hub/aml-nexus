@@ -30,12 +30,20 @@ python -m src.evaluate
 - [x] PayPal Sandbox (read-only): OAuth2 + Transaction Search API, normalised into the detector schema
 - [x] Money-flow map (animated SVG, replay slider), exact score breakdown, decision path and 'what would change the recommendation'
 - [x] Optional grounded AI summary (Claude): only restates the evidence, every number is checked, otherwise a labelled template is shown
-- [ ] Evidence ledger (statistical second opinion) and Benford's-law check
+- [x] Evidence ledger (naive Bayes in decibans, a statistical second opinion) and a peer-relative Benford's-law check
 
 ## Honest results (synthetic data, 10 held-out seeds)
 - Planted laundering accounts flagged for Monitor/Escalate: ~99.7% (worst seed 96.6%).
 - Innocent accounts at freeze-level (Escalate): 0. Innocents sent to Verify: ~10 per seed; to Monitor: ~6 per seed (mostly charities and emergency fundraisers).
 - A naive count-based rule at matched detection rate flagged ~35 innocents per seed, and could not reach our detection rate in 6 of 10 seeds.
+
+## Evidence ledger: what it is and what it is not
+A small naive-Bayes model whose inputs each add or subtract decibans of evidence (`python -m src.train_ledger`; weights in `docs/ledger_model.json`).
+Trained on 14 synthetic seeds, cut chosen on those seeds, reported on 10 held-out seeds (`docs/ledger_results.json`):
+the model flagged all 140 planted collector accounts and 0 of 194 innocent candidates; the rules flagged 139 and 58 innocents.
+**Read this as a sign that the synthetic data is easy to separate, not as accuracy.** The model sees the same features as the rules, so it is a
+second opinion with learned weights, not independent evidence. Closed loops are excluded (no innocent loops in the data). Real use needs the
+bank's own labelled case outcomes.
 
 ## Known limits (please read)
 - The data generator and the detectors were written by the same authors, so these numbers are optimistic. They show the pipeline works, not that it will work on real data.
@@ -57,4 +65,4 @@ python -m src.evaluate
 ## Inspirations (inspired by, not implementations of)
 - John Snow's 1854 cholera map: the money-flow map exists because a picture shows what a table hides.
 - Weight of evidence (I. J. Good and Alan Turing's wartime work): evidence for and against is added up transparently, which is the idea behind the score breakdown.
-- Benford's law (Newcomb 1881, Benford 1938), used in forensic accounting: planned next as a supporting signal, with known false-positive cases (fixed price points).
+- Benford's law (Newcomb 1881, Benford 1938), used in forensic accounting: used only relative to peers, because honest price points also break it.

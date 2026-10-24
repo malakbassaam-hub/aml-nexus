@@ -10,6 +10,7 @@ import streamlit.components.v1 as components
 
 from src.paypal_client import (SAMPLE_RESPONSE, PayPalConfig, analyze, default_origin, fetch_last_days, get_token,
                                to_edges)
+from src.benford import to_svg as benford_svg
 from src.explain import AIConfig, facts_from_case, facts_from_packet, summarize
 from src.flowmap import FRAME, build_geometry, to_svg, wrap_html
 from src.service import SCENARIOS, TIER_COLORS, Workbench
@@ -58,6 +59,15 @@ def bars(items, color, total):
         f"background:{color};height:14px;border-radius:6px'></div></div><div style='width:54px;text-align:right;font-weight:600'>{v:+.2f}</div></div>"
         for lab, v in items) or "<i>Nothing recorded.</i>"
     return rows
+
+
+def db_bars(entries):
+    top = max([abs(d) for _, _, d in entries] + [1])
+    return "".join(
+        f"<div style='display:flex;align-items:center;margin:3px 0'><div style='width:52%;font-size:.86rem'>{t}: <b>{b}</b></div>"
+        f"<div style='flex:1;background:#E6ECF5;border-radius:6px;height:12px'><div style='width:{abs(d) / top * 100:.0f}%;"
+        f"background:{'#D93025' if d > 0 else '#1E8E3E'};height:12px;border-radius:6px'></div></div>"
+        f"<div style='width:70px;text-align:right;font-weight:600'>{d:+.1f} dB</div></div>" for t, b, d in entries)
 
 
 def show_summary(key, facts):
@@ -145,6 +155,22 @@ with tab_q:
             st.markdown(f"**Decision path:** {why} → **{tier_}**")
             for line in what_would_change(float(row.suspicion), float(row.counter)):
                 st.markdown(f"- {line}")
+            lv = wb.ledger_view(acct, row)
+            with st.expander("📒 Evidence ledger: a statistical second opinion", expanded=False):
+                if lv is None:
+                    st.caption("Not applicable here: closed loops have no innocent examples to learn from, or no trained model file was found.")
+                else:
+                    st.markdown(db_bars(lv["entries"]), unsafe_allow_html=True)
+                    st.markdown(f"**Net weight of evidence: {lv['net']:+.1f} dB** (the model flags at {lv['threshold']:+.1f} dB or more). {lv['verdict']}")
+                    st.caption("Red adds weight toward laundering, green toward an innocent explanation (decibans, as in I. J. Good and Alan Turing's "
+                               "weighing of evidence). Same features as the rules but weights learned from synthetic data, so this is a second opinion, "
+                               "not independent evidence. Synthetic laundering is easier to tell apart than the real thing: expect more disagreement on real data.")
+                bp = wb.inflow_profile(acct)
+                if bp is None:
+                    st.caption("Benford first-digit check: insufficient data (needs at least 20 payments).")
+                else:
+                    components.html(benford_svg(bp), height=250)
+                    st.caption("Benford's law is judged against peers only: honest price points (such as 9.99) also break it.")
             with st.expander("🧠 Case summary (grounded in the evidence above)"):
                 show_summary(f"case_{acct}_{wb.now}", facts_from_case(row))
             st.divider()
