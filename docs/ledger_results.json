@@ -1,0 +1,60 @@
+{
+ "train_seeds": [
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24
+ ],
+ "heldout_seeds": [
+  100,
+  101,
+  102,
+  103,
+  104,
+  105,
+  106,
+  107,
+  108,
+  109
+ ],
+ "threshold_db": 36.62,
+ "train_counts": {
+  "pos": 196,
+  "neg": 257,
+  "nb_tp": 196,
+  "nb_fp": 0,
+  "rule_tp": 195,
+  "rule_fp": 90,
+  "both_tp": 195,
+  "both_fp": 0,
+  "rules_only_tp": 0,
+  "rules_only_fp": 90,
+  "model_only_tp": 1,
+  "model_only_fp": 0
+ },
+ "heldout_counts": {
+  "pos": 140,
+  "neg": 194,
+  "nb_tp": 140,
+  "nb_fp": 0,
+  "rule_tp": 139,
+  "rule_fp": 58,
+  "both_tp": 139,
+  "both_fp": 0,
+  "rules_only_tp": 0,
+  "rules_only_fp": 58,
+  "model_only_tp": 1,
+  "model_only_fp": 0
+ },
+ "note": "Same features as the rules; learned weights vs hand-set weights. Closed loops are excluded (no innocent loops in the data)."
+}
