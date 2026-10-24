@@ -6,10 +6,14 @@ from datetime import timedelta
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.paypal_client import (SAMPLE_RESPONSE, PayPalConfig, analyze, default_origin, fetch_last_days, get_token,
                                to_edges)
+from src.explain import AIConfig, facts_from_case, facts_from_packet, summarize
+from src.flowmap import build_geometry, to_svg
 from src.service import SCENARIOS, TIER_COLORS, Workbench
+from src.why import breakdown, decision_path, what_would_change
 from src.watch import CAPS
 
 st.set_page_config(page_title="AML-Nexus", page_icon="🛡️", layout="wide")
@@ -33,7 +37,38 @@ if "wb" not in st.session_state:
     with st.spinner("Generating synthetic bank data..."):
         st.session_state["wb"] = Workbench(7)
         st.session_state["opened_at"] = {}
+st.session_state.setdefault("summaries", {})
 wb = st.session_state["wb"]
+try:
+    _k = dict(st.secrets["anthropic"])
+    ai_cfg = AIConfig(_k["api_key"], _k.get("model", "claude-haiku-5-5"))
+except Exception:
+    ai_cfg = None  # no key: a fixed template summary is shown and labelled as such
+
+
+def flow_map(account, kind, day, tier):
+    geo = build_geometry(wb.tx, wb.acc, account, day, as_cycle=(kind == "cycle"))
+    components.html(to_svg(geo, TIER_COLORS.get(tier, "#003087")), height=590)
+
+
+def bars(items, color, total):
+    rows = "".join(
+        f"<div style='display:flex;align-items:center;margin:3px 0'><div style='width:46%;font-size:.88rem'>{lab}</div>"
+        f"<div style='flex:1;background:#E6ECF5;border-radius:6px;height:14px'><div style='width:{min(100, abs(v) / max(total, 0.01) * 100):.0f}%;"
+        f"background:{color};height:14px;border-radius:6px'></div></div><div style='width:54px;text-align:right;font-weight:600'>{v:+.2f}</div></div>"
+        for lab, v in items) or "<i>Nothing recorded.</i>"
+    return rows
+
+
+def show_summary(key, facts):
+    res = st.session_state["summaries"].get(key)
+    if st.button("Generate summary", key=f"sum_{key}"):
+        res = st.session_state["summaries"][key] = summarize(facts, ai_cfg)
+    if res:
+        st.markdown(res["text"])
+        st.caption(("🧠 Written by Claude. " if res["source"] == "claude" else "📄 Fixed template, not AI. ") + res["note"])
+        with st.expander("Exactly what the model is allowed to see"):
+            st.json(res["facts"])
 
 
 def badge(tier):
@@ -96,6 +131,22 @@ with tab_q:
                 st.markdown("#### 🟢 Evidence against")
                 for t in (row.counter_evidence or ["No counter-evidence found."]):
                     st.markdown(f"- {t}")
+            st.markdown("#### 🗺️ Money-flow map")
+            day = st.slider("Replay: show the network as of day", max(0, wb.now - 30), wb.now, wb.now, key=f"replay_{acct}_{wb.now}")
+            flow_map(acct, row.kind, day, row.tier)
+            st.markdown("#### 🧮 Why this score")
+            bd = breakdown(row)
+            w1, w2 = st.columns(2)
+            w1.markdown(f"**For suspicion = {bd['total_for']:.2f}**\n\n" + bars(bd["for_items"], "#D93025", bd["total_for"]), unsafe_allow_html=True)
+            w2.markdown(f"**Against = {bd['total_against']:.2f}**\n\n" + bars(bd["against_items"], "#1E8E3E", max(bd["total_against"], 0.3)), unsafe_allow_html=True)
+            for n_ in bd["notes"]:
+                st.caption("ℹ️ " + n_)
+            tier_, why = decision_path(float(row.suspicion), float(row.counter))
+            st.markdown(f"**Decision path:** {why} → **{tier_}**")
+            for line in what_would_change(float(row.suspicion), float(row.counter)):
+                st.markdown(f"- {line}")
+            with st.expander("🧠 Case summary (grounded in the evidence above)"):
+                show_summary(f"case_{acct}_{wb.now}", facts_from_case(row))
             st.divider()
             ce = st.checkbox("I have read the counter-evidence", key=f"ce_{acct}_{wb.now}")
             reason = st.text_area("Written reason (required for every decision)", key=f"reason_{acct}_{wb.now}")
@@ -160,6 +211,16 @@ with tab_w:
                 for t in p["now"]["counter_evidence"] or ["None"]:
                     st.markdown(f"- {t}")
             st.info(p["hint"])
+            st.markdown("**🗺️ Watch the network form**")
+            last = min(wb.now, w.ko.end_day - 1)
+            if last > w.ko.start_day:
+                wday = st.slider("Replay day", w.ko.start_day, last, last, key=f"wreplay_{acct}")
+            else:
+                wday = last
+            case_now = wb.case(acct)
+            flow_map(acct, case_now.kind if case_now is not None else "fan_in", wday, p["now"]["tier"])
+            with st.expander("🧠 Watch summary (grounded in the evidence above)"):
+                show_summary(f"watch_{acct}_{wb.now}", facts_from_packet(p, last - w.ko.start_day))
             st.markdown("**Linked accounts** (only accounts with real transfers; the reviewer approves each link)")
             for s in wb.link_suggestions(acct):
                 c1, c2 = st.columns([4, 1])

@@ -28,7 +28,9 @@ python -m src.evaluate
 - [x] Multi-seed evaluation: calibrated on dev seeds, reported on held-out seeds (`docs/results.json`)
 - [x] Streamlit dashboard: case queue, Evidence Watch tab, reviewer-quality tab, audit log, demo scenarios
 - [x] PayPal Sandbox (read-only): OAuth2 + Transaction Search API, normalised into the detector schema
-- [ ] LLM case summary (summarizes existing evidence only)
+- [x] Money-flow map (animated SVG, replay slider), exact score breakdown, decision path and 'what would change the recommendation'
+- [x] Optional grounded AI summary (Claude): only restates the evidence, every number is checked, otherwise a labelled template is shown
+- [ ] Evidence ledger (statistical second opinion) and Benford's-law check
 
 ## Honest results (synthetic data, 10 held-out seeds)
 - Planted laundering accounts flagged for Monitor/Escalate: ~99.7% (worst seed 96.6%).
@@ -51,3 +53,8 @@ python -m src.evaluate
 - The integration is read-only and refuses any non-sandbox URL.
 - Streamlit cannot receive webhooks, so the dashboard pulls transactions instead.
 - The live sandbox feed is small. Large scenarios are synthetic and are labelled as such. PayPal does not expose account age, so age-based signals are neutral on live data.
+
+## Inspirations (inspired by, not implementations of)
+- John Snow's 1854 cholera map: the money-flow map exists because a picture shows what a table hides.
+- Weight of evidence (I. J. Good and Alan Turing's wartime work): evidence for and against is added up transparently, which is the idea behind the score breakdown.
+- Benford's law (Newcomb 1881, Benford 1938), used in forensic accounting: planned next as a supporting signal, with known false-positive cases (fixed price points).
