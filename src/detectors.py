@@ -87,7 +87,7 @@ def fan_in_scan(tx, accounts, min_senders=5, now=None):
                             supporting=[f"account opened {int(w.day.min() - opened[a])} days before this inflow began",
                                         f"{len(snd)} distinct senders paid {total_in:,.0f} within {SLOW_WIN} days",
                                         f"{big:.0%} of payments are large (>= {int(0.15 * THRESHOLD):,})",
-                                        f"funnel shape: {len(snd)} senders -> {nrecv} recipient(s)"],
+                                        (f"funnel shape: {len(snd)} senders -> {nrecv} recipient(s)" if nrecv else f"funnel shape: {len(snd)} senders, no outflow observed yet")],
                             counter_evidence=cnt, window_start=int(s),
                             components=dict(typology=0.3, volume=round(0.25 * min(total_in / (4 * THRESHOLD), 1), 3), large_payments=round(0.25 * big, 3),
                                             pass_through=round(0.2 * pas, 3), cap=round(sus - raw, 3)),

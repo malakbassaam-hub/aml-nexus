@@ -5,6 +5,7 @@ import numpy as np
 from .detectors import find_cycles
 
 W, H = 900, 540
+FRAME = 580  # iframe height used by the dashboard
 NEW, OLD, OUTSIDE = "#D93025", "#1E8E3E", "#5A6B85"
 
 
@@ -58,7 +59,7 @@ def _width(a):
 
 
 def to_svg(geo, hub_color="#003087"):
-    p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" style="width:100%;height:auto;display:block">',
+    p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMin meet" style="width:100%;max-height:{FRAME - 20}px;height:auto;display:block;margin:0 auto">',
          "<style>.flow{stroke-dasharray:0.1 18;stroke-linecap:round;animation:dash 1.1s linear infinite;fill:none}.base{fill:none;opacity:.22}"
          "@keyframes dash{to{stroke-dashoffset:-36}}text{font-family:Inter,'Segoe UI',Arial,sans-serif;fill:#0B1F3A}"
          ".pulse{animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{opacity:.55}}</style>",
@@ -105,3 +106,11 @@ def to_svg(geo, hub_color="#003087"):
         x += 215
     p.append("</svg>")
     return "".join(p)
+
+
+def wrap_html(svg):
+    """Page for the dashboard's iframe: no margins, and (when the browser allows it) the frame shrinks to the drawing."""
+    return ("<style>html,body{margin:0;padding:0;background:transparent}</style>" + svg +
+            "<script>function fit(){try{var h=document.querySelector('svg').getBoundingClientRect().height;"
+            "window.frameElement.style.height=(h+4)+'px';}catch(e){}}window.addEventListener('load',fit);"
+            "window.addEventListener('resize',fit);</script>")
