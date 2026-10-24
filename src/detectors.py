@@ -35,7 +35,8 @@ def fan_in_scan(tx, accounts, min_senders=5, now=None):
             total_in = w.amount.sum()
             out = 0.0 if o is None else o[(o.day >= s) & (o.day < s + WIN + TAIL)].amount.sum()
             pas = min(out / total_in, 1.0)
-            ret = (1 - pas) if s + WIN + TAIL <= now + 1 else 0.5  # money may simply not have moved yet: unknown, not exculpatory
+            unobs = s + WIN + TAIL > now + 1  # money may simply not have moved yet: unknown, not exculpatory
+            ret = 0.5 if unobs else (1 - pas)
             sus = 0.2 * min(len(snd) / 15, 1) + 0.25 * new_share + 0.25 * struct + 0.3 * pas
             if best is None or sus > best["suspicion"]:
                 sup, cnt = [], []
@@ -45,11 +46,16 @@ def fan_in_scan(tx, accounts, min_senders=5, now=None):
                 if pas >= 0.3: sup.append(f"{pas:.0%} of inflow moved out within {TAIL} days")
                 if repeat >= 0.4: cnt.append(f"{repeat:.0%} of senders are established counterparties")
                 if new_share <= 0.5: cnt.append(f"{1 - new_share:.0%} of senders are long-standing accounts")
-                if pas <= 0.5 and ret != 0.5: cnt.append(f"{1 - pas:.0%} of inflow was retained, not passed on")
+                if pas <= 0.5 and not unobs: cnt.append(f"{1 - pas:.0%} of inflow was retained, not passed on")
                 if struct < 0.1: cnt.append("deposit amounts are not clustered under the threshold")
                 best = dict(account=a, kind="fan_in", suspicion=round(sus, 3),
                             counter=round(0.4 * repeat + 0.3 * (1 - new_share) + 0.3 * ret, 3),
-                            supporting=sup, counter_evidence=cnt, window_start=int(s))
+                            supporting=sup, counter_evidence=cnt, window_start=int(s),
+                            components=dict(breadth=round(0.2 * min(len(snd) / 15, 1), 3), new_accounts=round(0.25 * new_share, 3),
+                                            structuring=round(0.25 * struct, 3), pass_through=round(0.3 * pas, 3)),
+                            counter_components=dict(repeat=round(0.4 * repeat, 3), established=round(0.3 * (1 - new_share), 3),
+                                                    retention=round(0.3 * ret, 3)),
+                            notes=["Money movement is not yet observable for this window: counted as neutral, not as evidence of innocence."] if unobs else [])
         # slow accumulation into a young account: 30-day horizon, many senders, large tickets, funnel shape
         for s in sorted(d for d in inc.day.unique() if d >= WARMUP and d - opened[a] <= YOUNG_DAYS):
             w = inc[(inc.day >= s) & (inc.day < s + SLOW_WIN)]
@@ -66,13 +72,15 @@ def fan_in_scan(tx, accounts, min_senders=5, now=None):
             repeat = float(np.mean([x in set(inc.loc[inc.day < s, "src"]) for x in snd.index]))
             big = float((w.amount >= 0.15 * THRESHOLD).mean())
             pas = min(out / total_in, 1.0)
-            ret = (1 - pas) if s + SLOW_WIN + TAIL <= now + 1 else 0.5
-            sus = min(0.3 + 0.25 * min(total_in / (4 * THRESHOLD), 1) + 0.25 * big + 0.2 * pas, SLOW_CAP)
+            unobs = s + SLOW_WIN + TAIL > now + 1
+            ret = 0.5 if unobs else (1 - pas)
+            raw = 0.3 + 0.25 * min(total_in / (4 * THRESHOLD), 1) + 0.25 * big + 0.2 * pas
+            sus = min(raw, SLOW_CAP)
             if best is None or sus > best["suspicion"]:
                 cnt = []
                 if repeat >= 0.4: cnt.append(f"{repeat:.0%} of senders are established counterparties")
                 if new_share <= 0.5: cnt.append(f"{1 - new_share:.0%} of senders are long-standing accounts")
-                if pas <= 0.5 and ret != 0.5: cnt.append(f"{1 - pas:.0%} of inflow was retained, not passed on")
+                if pas <= 0.5 and not unobs: cnt.append(f"{1 - pas:.0%} of inflow was retained, not passed on")
                 if big < 0.3: cnt.append("payments are mostly small, ordinary-sized tickets")
                 best = dict(account=a, kind="slow_accumulation", suspicion=round(sus, 3),
                             counter=round(0.4 * repeat + 0.3 * (1 - new_share) + 0.3 * ret, 3),
@@ -80,7 +88,12 @@ def fan_in_scan(tx, accounts, min_senders=5, now=None):
                                         f"{len(snd)} distinct senders paid {total_in:,.0f} within {SLOW_WIN} days",
                                         f"{big:.0%} of payments are large (>= {int(0.15 * THRESHOLD):,})",
                                         f"funnel shape: {len(snd)} senders -> {nrecv} recipient(s)"],
-                            counter_evidence=cnt, window_start=int(s))
+                            counter_evidence=cnt, window_start=int(s),
+                            components=dict(typology=0.3, volume=round(0.25 * min(total_in / (4 * THRESHOLD), 1), 3), large_payments=round(0.25 * big, 3),
+                                            pass_through=round(0.2 * pas, 3), cap=round(sus - raw, 3)),
+                            counter_components=dict(repeat=round(0.4 * repeat, 3), established=round(0.3 * (1 - new_share), 3),
+                                                    retention=round(0.3 * ret, 3)),
+                            notes=["Money movement is not yet observable for this window: counted as neutral, not as evidence of innocence."] if unobs else [])
         if best:
             rows.append(best)
     return pd.DataFrame(rows)

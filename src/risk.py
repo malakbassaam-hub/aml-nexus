@@ -29,9 +29,10 @@ def build_cases(tx, accounts, c_mon=None, now=None):
             rows.append(dict(account=n, kind="cycle", suspicion=0.85, counter=round(0.5 * est, 3),
                              supporting=[f"funds returned to origin through {len(cy['nodes'])} accounts in {cy['span']} days",
                                          f"each hop kept at least {keep:.0%} of the amount"],
-                             counter_evidence=[f"{est:.0%} of loop members are long-standing accounts"] if est else []))
+                             counter_evidence=[f"{est:.0%} of loop members are long-standing accounts"] if est else [],
+                             components=dict(closed_loop=0.85), counter_components=dict(established=round(0.5 * est, 3)), notes=[]))
     if not rows:
-        return pd.DataFrame(columns=["account", "kind", "suspicion", "counter", "supporting", "counter_evidence", "tier"])
+        return pd.DataFrame(columns=["account", "kind", "suspicion", "counter", "supporting", "counter_evidence", "components", "counter_components", "notes", "tier"])
     df = pd.DataFrame(rows).sort_values("suspicion", ascending=False).drop_duplicates("account")
     df["tier"] = [recommend(s, c, c_mon) for s, c in zip(df.suspicion, df.counter)]
     return df.reset_index(drop=True)
