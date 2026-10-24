@@ -31,7 +31,8 @@ def build_geometry(tx, acc, account, day, window=30, max_senders=14, max_out=6, 
                             stats=f"Closed loop of {n} accounts; first hop {_k(c['amounts'][0])}, funds return to the start " + ("on the same day" if c["span"] == 0 else f"within {c['span']} days"))
     inc, out = t[t.dst == account], t[t.src == account]
     g = inc.groupby("src").agg(amount=("amount", "sum"), first=("day", "min"), last=("day", "max")).reset_index()
-    g["new"] = (g["first"] - g.src.map(opened).fillna(-1000)) < 30
+    born = np.array([opened.get(a, -1000) for a in g.src], dtype=float)  # plain numpy: immune to pandas/pyarrow dtype differences
+    g["new"] = (g["first"].to_numpy(dtype=float) - born) < 30
     g = g.sort_values(["first", "amount"], ascending=[True, False])
     shown, rest = g.head(max_senders), g.iloc[max_senders:]
     senders = [dict(id=r.src, amount=r.amount, new=bool(r.new), recent=int(r.last) >= day - 2) for r in shown.itertuples()]
@@ -58,7 +59,7 @@ def _width(a):
 
 def to_svg(geo, hub_color="#003087"):
     p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" style="width:100%;height:auto;display:block">',
-         "<style>.flow{stroke-dasharray:10 8;animation:dash 1.1s linear infinite;fill:none}"
+         "<style>.flow{stroke-dasharray:0.1 18;stroke-linecap:round;animation:dash 1.1s linear infinite;fill:none}.base{fill:none;opacity:.22}"
          "@keyframes dash{to{stroke-dashoffset:-36}}text{font-family:Inter,'Segoe UI',Arial,sans-serif;fill:#0B1F3A}"
          ".pulse{animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{opacity:.55}}</style>",
          '<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EAF1FB"/></linearGradient>'
@@ -69,22 +70,29 @@ def to_svg(geo, hub_color="#003087"):
         for e in geo["edges"]:
             a, b = n[e["a"]], n[e["b"]]
             mx, my = (a["x"] + b["x"]) / 2, (a["y"] + b["y"]) / 2
-            p.append(f'<line class="flow" x1="{a["x"]:.0f}" y1="{a["y"]:.0f}" x2="{b["x"]:.0f}" y2="{b["y"]:.0f}" stroke="{NEW}" stroke-width="{_width(e["amount"]):.1f}" opacity=".8"/>')
+            ln = f'x1="{a["x"]:.0f}" y1="{a["y"]:.0f}" x2="{b["x"]:.0f}" y2="{b["y"]:.0f}" stroke="{NEW}"'
+            p.append(f'<line class="base" {ln} stroke-width="{_width(e["amount"]):.1f}"/><line class="flow" {ln} stroke-width="{_width(e["amount"]) * .9:.1f}" opacity=".95"/>')
             p.append(f'<text x="{mx:.0f}" y="{my:.0f}" font-size="13" text-anchor="middle" font-weight="600" stroke="#fff" stroke-width="4" paint-order="stroke">{_k(e["amount"])}</text>')
         for v in n:
             p.append(f'<circle cx="{v["x"]:.0f}" cy="{v["y"]:.0f}" r="{30 if v["hub"] else 22}" fill="{hub_color if v["hub"] else "#FFFFFF"}" stroke="{hub_color}" stroke-width="3"/>')
             p.append(f'<text x="{v["x"]:.0f}" y="{v["y"] + 4:.0f}" font-size="11" text-anchor="middle" font-weight="700" fill="{"#fff" if v["hub"] else "#0B1F3A"}" style="fill:{"#fff" if v["hub"] else "#0B1F3A"}">{html.escape(v["id"])}</text>')
     else:
-        hx, hy, sx, ox = 450, H / 2, 205, 745
+        hx, hy, sx, ox = 450, H / 2, 205, 720
         for s_ in geo["senders"]:
             c = NEW if s_["new"] else OLD
-            p.append(f'<path class="flow{" pulse" if s_["recent"] else ""}" d="{_bez(sx + 14, s_["y"], hx - 36, hy)}" stroke="{c}" stroke-width="{_width(s_["amount"]):.1f}" opacity="{.95 if s_["recent"] else .5}"{" filter=\'url(#glow)\'" if s_["recent"] else ""}/>')
+            d_ = _bez(sx + 14, s_["y"], hx - 36, hy)
+            p.append(f'<path class="base" d="{d_}" stroke="{c}" stroke-width="{_width(s_["amount"]):.1f}"/>')
+            p.append(f'<path class="flow{" pulse" if s_["recent"] else ""}" d="{d_}" stroke="{c}" stroke-width="{_width(s_["amount"]) * .9:.1f}" opacity="{.98 if s_["recent"] else .7}"{" filter=\'url(#glow)\'" if s_["recent"] else ""}/>')
             p.append(f'<circle cx="{sx}" cy="{s_["y"]:.0f}" r="{10 if not s_.get("more") else 14}" fill="{c}"/>')
             p.append(f'<text x="{sx - 18}" y="{s_["y"] + 4:.0f}" font-size="12" text-anchor="end">{html.escape(s_["id"])} · {_k(s_["amount"])}</text>')
         for o_ in geo["outs"]:
-            p.append(f'<path class="flow" d="{_bez(hx + 36, hy, ox - 14, o_["y"])}" stroke="{OUTSIDE}" stroke-width="{_width(o_["amount"]):.1f}" opacity=".7"/>')
+            d_ = _bez(hx + 36, hy, ox - 14, o_["y"])
+            p.append(f'<path class="base" d="{d_}" stroke="{OUTSIDE}" stroke-width="{_width(o_["amount"]):.1f}"/>')
+            p.append(f'<path class="flow" d="{d_}" stroke="{OUTSIDE}" stroke-width="{_width(o_["amount"]) * .9:.1f}" opacity=".85"/>')
             p.append(f'<rect x="{ox - 14}" y="{o_["y"] - 12:.0f}" width="24" height="24" rx="5" fill="{OUTSIDE}"/>')
-            p.append(f'<text x="{ox + 20}" y="{o_["y"] + 4:.0f}" font-size="12">{html.escape(o_["id"])} · {_k(o_["amount"])}{" (outside bank)" if o_["outside"] else ""}</text>')
+            p.append(f'<text x="{ox + 20}" y="{o_["y"] - 1:.0f}" font-size="12">{html.escape(o_["id"])} · {_k(o_["amount"])}</text>')
+            if o_["outside"]:
+                p.append(f'<text x="{ox + 20}" y="{o_["y"] + 14:.0f}" font-size="11" style="fill:#5A6B85">outside bank</text>')
         p.append(f'<circle cx="{hx}" cy="{hy}" r="36" fill="{hub_color}" stroke="#fff" stroke-width="4" filter="url(#glow)"/>')
         p.append(f'<text x="{hx}" y="{hy + 4}" font-size="12" text-anchor="middle" font-weight="700" style="fill:#fff">{html.escape(geo["hub"])}</text>')
         if not geo["senders"]:
