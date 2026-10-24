@@ -171,7 +171,7 @@ with tab_q:
                 else:
                     components.html(benford_svg(bp), height=250)
                     st.caption("Benford's law is judged against peers only: honest price points (such as 9.99) also break it.")
-            with st.expander("🧠 Case summary (grounded in the evidence above)"):
+            with st.expander(("🧠" if ai_cfg else "📄") + " Case summary (grounded in the evidence above)"):
                 show_summary(f"case_{acct}_{wb.now}", facts_from_case(row))
             st.divider()
             ce = st.checkbox("I have read the counter-evidence", key=f"ce_{acct}_{wb.now}")
@@ -245,7 +245,7 @@ with tab_w:
                 wday = last
             case_now = wb.case(acct)
             flow_map(acct, case_now.kind if case_now is not None else "fan_in", wday, p["now"]["tier"])
-            with st.expander("🧠 Watch summary (grounded in the evidence above)"):
+            with st.expander(("🧠" if ai_cfg else "📄") + " Watch summary (grounded in the evidence above)"):
                 show_summary(f"watch_{acct}_{wb.now}", facts_from_packet(p, last - w.ko.start_day))
             st.markdown("**Linked accounts** (only accounts with real transfers; the reviewer approves each link)")
             for s in wb.link_suggestions(acct):
