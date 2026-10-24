@@ -88,7 +88,7 @@ def summarize(facts, cfg=None, http=_default_http):
     """Always returns something usable: the model's checked summary, or the fixed template with the reason."""
     fallback = lambda note: dict(text=template_summary(facts), source="template", note=note, facts=facts)
     if cfg is None or not cfg.api_key:
-        return fallback("No API key configured, so a fixed template is shown (not AI).")
+        return fallback("No API key is configured.")
     try:
         status, body = http(API_URL, {"x-api-key": cfg.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
                             {"model": cfg.model, "max_tokens": 450, "system": SYSTEM,

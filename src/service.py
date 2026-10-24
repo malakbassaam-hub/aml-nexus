@@ -11,6 +11,7 @@ from .risk import build_cases
 from .watch import EvidenceWatch, KeepOpen
 
 LEDGER_PATH = Path(__file__).resolve().parent.parent / "docs" / "ledger_model.json"
+PATTERN_NAMES = {"fan_in": "many senders, one account", "slow_accumulation": "slow build-up in a young account"}
 TIER_COLORS = {"Clear": "#1E8E3E", "Verify": "#F2A900", "Monitor": "#0070E0", "Escalate": "#D93025"}
 TIER_ORDER = {"Escalate": 0, "Monitor": 1, "Verify": 2, "Clear": 3}
 
@@ -184,4 +185,4 @@ class Workbench:
                    (False, True): "The learned model flags this account but the rules do not: worth a second look.",
                    (False, False): "Neither the rules nor the learned model flag it as a strong case."}[(rules_flag, model_flag)]
         return dict(net=net, threshold=threshold, model_flag=model_flag, verdict=verdict,
-                    entries=[(ledger_mod.TITLES[f], b, d) for f, b, d in entries])
+                    entries=[(ledger_mod.TITLES[f], PATTERN_NAMES.get(b, b), d) for f, b, d in entries])
