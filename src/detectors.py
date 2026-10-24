@@ -55,7 +55,9 @@ def fan_in_scan(tx, accounts, min_senders=5, now=None):
                                             structuring=round(0.25 * struct, 3), pass_through=round(0.3 * pas, 3)),
                             counter_components=dict(repeat=round(0.4 * repeat, 3), established=round(0.3 * (1 - new_share), 3),
                                                     retention=round(0.3 * ret, 3)),
-                            notes=["Money movement is not yet observable for this window: counted as neutral, not as evidence of innocence."] if unobs else [])
+                            notes=["Money movement is not yet observable for this window: counted as neutral, not as evidence of innocence."] if unobs else [],
+                            features=dict(n_senders=len(snd), new_share=round(new_share, 3), struct=round(struct, 3), pas=round(pas, 3),
+                                          repeat=round(repeat, 3), big=round(float((w.amount >= 0.15 * THRESHOLD).mean()), 3), unobs=bool(unobs)))
         # slow accumulation into a young account: 30-day horizon, many senders, large tickets, funnel shape
         for s in sorted(d for d in inc.day.unique() if d >= WARMUP and d - opened[a] <= YOUNG_DAYS):
             w = inc[(inc.day >= s) & (inc.day < s + SLOW_WIN)]
@@ -93,7 +95,10 @@ def fan_in_scan(tx, accounts, min_senders=5, now=None):
                                             pass_through=round(0.2 * pas, 3), cap=round(sus - raw, 3)),
                             counter_components=dict(repeat=round(0.4 * repeat, 3), established=round(0.3 * (1 - new_share), 3),
                                                     retention=round(0.3 * ret, 3)),
-                            notes=["Money movement is not yet observable for this window: counted as neutral, not as evidence of innocence."] if unobs else [])
+                            notes=["Money movement is not yet observable for this window: counted as neutral, not as evidence of innocence."] if unobs else [],
+                            features=dict(n_senders=len(snd), new_share=round(new_share, 3),
+                                          struct=round(float(((w.amount >= 0.8 * THRESHOLD) & (w.amount < THRESHOLD)).mean()), 3), pas=round(pas, 3),
+                                          repeat=round(repeat, 3), big=round(big, 3), unobs=bool(unobs)))
         if best:
             rows.append(best)
     return pd.DataFrame(rows)

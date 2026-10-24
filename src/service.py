@@ -1,11 +1,16 @@
 """Logic behind the dashboard. No Streamlit imports here, so it is unit-tested."""
+from pathlib import Path
+
 import pandas as pd
+from . import ledger as ledger_mod
 from .audit import AuditLog
+from .benford import digit_profile, peer_table
 from .data_gen import generate
 from .review import Review, bias_report, can_submit
 from .risk import build_cases
 from .watch import EvidenceWatch, KeepOpen
 
+LEDGER_PATH = Path(__file__).resolve().parent.parent / "docs" / "ledger_model.json"
 TIER_COLORS = {"Clear": "#1E8E3E", "Verify": "#F2A900", "Monitor": "#0070E0", "Escalate": "#D93025"}
 TIER_ORDER = {"Escalate": 0, "Monitor": 1, "Verify": 2, "Clear": 3}
 
@@ -31,7 +36,11 @@ class Workbench:
         self.last_day = int(self.tx.day.max())
         self.now, self.selected, self.scenario_note = 40, None, "Pick a demo scenario in the sidebar."
         self.audit, self.watches, self.closed, self.reviews, self.decisions = AuditLog(), {}, {}, [], {}
-        self._cases, self._snap = {}, {}
+        self._cases, self._snap, self._peers = {}, {}, {}
+        try:
+            self.ledger = ledger_mod.load(LEDGER_PATH)[:2]
+        except (OSError, ValueError, KeyError):
+            self.ledger = None  # the ledger panel is simply hidden if the trained model file is missing
 
     # ---- queue and cases -------------------------------------------------
     def cases_at(self, day):
@@ -154,3 +163,25 @@ class Workbench:
 
     def quality(self):
         return bias_report(self.reviews)
+
+    # ---- statistical second opinion -----------------------------------------
+    def inflow_profile(self, account):
+        t = self.tx[(self.tx.dst == account) & (self.tx.day <= self.now)]
+        return digit_profile(t.amount.to_numpy())
+
+    def ledger_view(self, account, row):
+        """Evidence ledger for a case, or None when it does not apply (closed loops) or no model file is available."""
+        if self.ledger is None or row.kind not in ("fan_in", "slow_accumulation") or not row.features:
+            return None
+        if self.now not in self._peers:
+            self._peers[self.now] = peer_table(self.tx, self.acc, self.now)
+        pct = self._peers[self.now].get(account, {}).get("pct")
+        model, threshold = self.ledger
+        net, entries = ledger_mod.score(model, ledger_mod.bin_features(row.features, row.kind, pct))
+        rules_flag, model_flag = row.tier in ("Monitor", "Escalate"), net >= threshold
+        verdict = {(True, True): "Both the rules and the learned model flag this account.",
+                   (True, False): "The rules flag this account but the learned model does not: read the counter-evidence closely.",
+                   (False, True): "The learned model flags this account but the rules do not: worth a second look.",
+                   (False, False): "Neither the rules nor the learned model flag it as a strong case."}[(rules_flag, model_flag)]
+        return dict(net=net, threshold=threshold, model_flag=model_flag, verdict=verdict,
+                    entries=[(ledger_mod.TITLES[f], b, d) for f, b, d in entries])
