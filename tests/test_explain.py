@@ -63,3 +63,25 @@ class Explain(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GeminiPath(unittest.TestCase):
+    cfg = AIConfig("g-key", "gemini-2.5-flash-lite", "gemini")
+
+    def test_request_shape_and_grounded_answer(self):
+        calls = []
+        def http(url, headers, body):
+            calls.append((url, headers, body))
+            return 200, {"candidates": [{"content": {"parts": [{"text": GOOD}]}}]}
+        r = summarize(FACTS, self.cfg, http)
+        self.assertEqual(r["source"], "gemini")
+        url, headers, body = calls[0]
+        self.assertTrue(url.startswith("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"))
+        self.assertEqual(headers["x-goog-api-key"], "g-key"); self.assertNotIn("g-key", url)
+        self.assertEqual(body["systemInstruction"]["parts"][0]["text"], SYSTEM)
+        self.assertEqual(json.loads(body["contents"][0]["parts"][0]["text"]), FACTS)
+
+    def test_bad_answers_fall_back_to_the_template(self):
+        for resp in ((200, {}), (200, {"candidates": []}), (429, {"error": {"message": "quota"}}),
+                     (200, {"candidates": [{"content": {"parts": [{"text": GOOD.replace("26", "99")}]}}]})):
+            self.assertEqual(summarize(FACTS, self.cfg, lambda *a, r=resp: r)["source"], "template")
