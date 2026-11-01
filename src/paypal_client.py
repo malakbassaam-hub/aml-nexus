@@ -133,11 +133,16 @@ def to_edges(details, holder, origin):
     return pd.DataFrame(rows, columns=EDGE_COLS), skipped
 
 
+def accounts_for(edges):
+    """PayPal does not expose account age, so every account gets a neutral, old opening day."""
+    names = sorted(set(edges.src) | set(edges.dst))
+    return pd.DataFrame({"account": names, "opened_day": -1000,
+                         "label": ["external" if n.startswith("OUTSIDE:") else "live" for n in names], "role": "live"})
+
+
 def analyze(edges):
     """Run AML-Nexus on live edges. PayPal does not expose account age, so age-based signals are neutral here."""
-    names = sorted(set(edges.src) | set(edges.dst))
-    acc = pd.DataFrame({"account": names, "opened_day": -1000,
-                        "label": ["external" if n.startswith("OUTSIDE:") else "live" for n in names], "role": "live"})
+    acc = accounts_for(edges)
     if edges.empty:
         return build_cases(edges.assign(day=pd.Series(dtype=int)), acc, now=0)
     return build_cases(edges, acc, now=int(edges.day.max()))

@@ -7,6 +7,9 @@ from dataclasses import dataclass
 
 API_URL = "https://api.anthropic.com/v1/messages"
 DEFAULT_MODEL = "claude-haiku-5-5"  # verify the current model name in your Anthropic console
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+DEFAULT_GEMINI = "gemini-2.5-flash-lite"  # free-tier model names change: check Google AI Studio and override in secrets
+NAMES = {"claude": "Claude", "gemini": "Gemini"}
 PATTERNS = {"fan_in": "many senders paying one account", "cycle": "funds returning to their origin through a loop of accounts",
             "slow_accumulation": "dispersed payments accumulating in a recently opened account"}
 FORBIDDEN = ("guilty", "criminal", "fraudster", "terrorist", "freeze", "frozen")
@@ -24,6 +27,7 @@ SYSTEM = (
 class AIConfig:
     api_key: str
     model: str = DEFAULT_MODEL
+    provider: str = "claude"  # "claude" or "gemini"
 
 
 def facts_from_case(row):
@@ -46,8 +50,13 @@ def template_summary(f):
     if "pattern" in f:
         parts.append(f"The pattern resembles {f['pattern']}.")
     if "recommendation_at_start" in f:
-        parts.append(f"Over {f['days_observed']} days of observation the recommendation moved from "
-                     f"{f['recommendation_at_start']} to {f['recommendation_now']}.")
+        n, a, b = f["days_observed"], f["recommendation_at_start"], f["recommendation_now"]
+        if n == 0:
+            parts.append("The watch has only just started, so there is no trend yet.")
+        elif a == b:
+            parts.append(f"Over {n} days of observation the recommendation stayed {b}.")
+        else:
+            parts.append(f"Over {n} days of observation the recommendation moved from {a} to {b}.")
     parts.append("Evidence for suspicion: " + "; ".join(f["evidence_for"]) + ".")
     parts.append("Evidence against: " + ("; ".join(f["evidence_against"]) if f["evidence_against"] else "none was found") + ".")
     parts.append("This is a recommendation only; a human reviewer makes the decision.")
@@ -90,16 +99,28 @@ def summarize(facts, cfg=None, http=_default_http):
     if cfg is None or not cfg.api_key:
         return fallback("No API key is configured.")
     try:
-        status, body = http(API_URL, {"x-api-key": cfg.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-                            {"model": cfg.model, "max_tokens": 450, "system": SYSTEM,
-                             "messages": [{"role": "user", "content": json.dumps(facts)}]})
+        if cfg.provider == "gemini":
+            status, body = http(GEMINI_URL.format(model=cfg.model), {"x-goog-api-key": cfg.api_key, "content-type": "application/json"},
+                                {"systemInstruction": {"parts": [{"text": SYSTEM}]},
+                                 "contents": [{"role": "user", "parts": [{"text": json.dumps(facts)}]}],
+                                 "generationConfig": {"maxOutputTokens": 700}})
+        else:
+            status, body = http(API_URL, {"x-api-key": cfg.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                                {"model": cfg.model, "max_tokens": 450, "system": SYSTEM,
+                                 "messages": [{"role": "user", "content": json.dumps(facts)}]})
     except Exception as e:  # network problems must never break the dashboard
         return fallback(f"The AI service was unreachable ({type(e).__name__}); template shown.")
     if status != 200:
         msg = (body.get("error", {}) or {}).get("message", "") if isinstance(body, dict) else ""
-        return fallback(f"The AI service returned HTTP {status}{': ' + msg[:120] if msg else ''}; template shown.")
-    text = "".join(b.get("text", "") for b in body.get("content", []) if b.get("type") == "text").strip()
+        return fallback(f"The AI service returned HTTP {status}{': ' + str(msg)[:120] if msg else ''}; template shown.")
+    try:
+        if cfg.provider == "gemini":
+            text = "".join(p.get("text", "") for p in body["candidates"][0]["content"]["parts"]).strip()
+        else:
+            text = "".join(b.get("text", "") for b in body.get("content", []) if b.get("type") == "text").strip()
+    except (KeyError, IndexError, TypeError):
+        return fallback("The AI service answered in an unexpected format; template shown.")
     ok, why = check_grounding(text, facts)
     if not ok:
         return fallback(f"The AI summary failed the grounding check ({why}); template shown.")
-    return dict(text=text, source="claude", note="Every number was verified against the evidence.", facts=facts)
+    return dict(text=text, source=cfg.provider, note="Every number was verified against the evidence.", facts=facts)
