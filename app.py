@@ -8,10 +8,10 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from src.paypal_client import (SAMPLE_RESPONSE, PayPalConfig, analyze, default_origin, fetch_last_days, get_token,
+from src.paypal_client import (SAMPLE_RESPONSE, PayPalConfig, accounts_for, analyze, default_origin, fetch_last_days, get_token,
                                to_edges)
 from src.benford import to_svg as benford_svg
-from src.explain import AIConfig, facts_from_case, facts_from_packet, summarize
+from src.explain import DEFAULT_GEMINI, NAMES, AIConfig, facts_from_case, facts_from_packet, summarize
 from src.flowmap import FRAME, build_geometry, to_svg, wrap_html
 from src.service import SCENARIOS, TIER_COLORS, Workbench
 from src.why import breakdown, decision_path, what_would_change
@@ -40,11 +40,14 @@ if "wb" not in st.session_state:
         st.session_state["opened_at"] = {}
 st.session_state.setdefault("summaries", {})
 wb = st.session_state["wb"]
-try:
-    _k = dict(st.secrets["anthropic"])
-    ai_cfg = AIConfig(_k["api_key"], _k.get("model", "claude-haiku-5-5"))
-except Exception:
-    ai_cfg = None  # no key: a fixed template summary is shown and labelled as such
+ai_cfg = None  # no key: a fixed template summary is shown and labelled as such
+for _prov, _model in (("gemini", DEFAULT_GEMINI), ("anthropic", "claude-haiku-5-5")):
+    try:
+        _k = dict(st.secrets[_prov])
+        ai_cfg = AIConfig(_k["api_key"], _k.get("model", _model), "gemini" if _prov == "gemini" else "claude")
+        break
+    except Exception:
+        continue
 
 
 def flow_map(account, kind, day, tier):
@@ -76,7 +79,7 @@ def show_summary(key, facts):
         res = st.session_state["summaries"][key] = summarize(facts, ai_cfg)
     if res:
         st.markdown(res["text"])
-        st.caption(("🧠 Written by Claude. " if res["source"] == "claude" else "📄 Fixed template, not AI. ") + res["note"])
+        st.caption((f"🧠 Written by {NAMES[res['source']]}. " if res["source"] in NAMES else "📄 Fixed template, not AI. ") + res["note"])
         with st.expander("Exactly what the model is allowed to see"):
             st.json(res["facts"])
 
@@ -322,7 +325,7 @@ with tab_p:
         try:
             details, holder, start = fetch_last_days(PayPalConfig(creds["client_id"], creds["client_secret"]), pp["token"], 30)
             edges, skipped = to_edges(details, holder, default_origin(start))
-            st.session_state["pp_data"] = dict(edges=edges, skipped=skipped, raw=len(details), source="live PayPal Sandbox")
+            st.session_state["pp_data"] = dict(edges=edges, skipped=skipped, raw=len(details), source="live PayPal Sandbox", holder=holder)
             wb.audit.add(reviewer, "paypal_fetch", "sandbox", {"records": len(details), "used": len(edges)}, wb.now)
         except Exception as e:
             st.error(str(e))
@@ -331,7 +334,7 @@ with tab_p:
         start = datetime(2026, 10, 3, tzinfo=timezone.utc)
         edges, skipped = to_edges(SAMPLE_RESPONSE["transaction_details"], SAMPLE_RESPONSE["account_number"], default_origin(start))
         st.session_state["pp_data"] = dict(edges=edges, skipped=skipped, raw=len(SAMPLE_RESPONSE["transaction_details"]),
-                                           source="offline sample in PayPal's format (NOT a live call)")
+                                           source="offline sample in PayPal's format (NOT a live call)", holder=SAMPLE_RESPONSE["account_number"])
     data = st.session_state.get("pp_data")
     if data:
         edges = data["edges"]
@@ -347,6 +350,10 @@ with tab_p:
                     "and try again later.")
         else:
             st.dataframe(edges, use_container_width=True, hide_index=True)
+            if data.get("holder"):
+                st.markdown("#### 🗺️ This feed as a money-flow map")
+                geo = build_geometry(edges, accounts_for(edges), data["holder"], int(edges.day.max()), window=60)
+                components.html(wrap_html(to_svg(geo, "#003087")), height=FRAME)
             if st.button("3 · Analyze with AML-Nexus", key="pp_analyze"):
                 res = analyze(edges)
                 if res.empty:

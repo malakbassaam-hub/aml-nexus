@@ -66,3 +66,16 @@ bank's own labelled case outcomes.
 - John Snow's 1854 cholera map: the money-flow map exists because a picture shows what a table hides.
 - Weight of evidence (I. J. Good and Alan Turing's wartime work): evidence for and against is added up transparently, which is the idea behind the score breakdown.
 - Benford's law (Newcomb 1881, Benford 1938), used in forensic accounting: used only relative to peers, because honest price points also break it.
+
+## AI tools and models disclosure
+- **Statistical machine-learning model (built in this repo):** the evidence ledger, a naive-Bayes model with Laplace smoothing, trained on synthetic data (`python -m src.train_ledger`). It gives a second opinion in decibans of evidence.
+- **Graph analytics (not machine learning):** NetworkX for closed loops; rule-based detectors for fan-in and slow accumulation.
+- **Large language model (optional):** Google Gemini (free tier via Google AI Studio) or Anthropic Claude write case summaries from a JSON of the case evidence. They only restate it: every number in the output is checked against the evidence, and a labelled template is shown if the check fails or no key is set. No account identifiers and no synthetic ground-truth labels are sent.
+- **AI never decides.** Recommendations come from the screening logic; a human reviewer makes every decision.
+- **Development:** this project was built with the help of an AI assistant (Claude) for code and review, directed and tested by the author.
+
+## PayPal integration
+OAuth2 client-credentials and the Transaction Search API (read-only, sandbox only) feed the same detectors and flow map as the synthetic scenarios. Streamlit cannot receive webhooks, so the app pulls transactions instead. The live sandbox feed is small; large scenarios are synthetic and labelled.
+
+## Judging notes
+The demo stays online through the judging period (December 15, 2026). The Streamlit app may be asleep when opened: wait a minute for it to wake. No credentials are needed to try the synthetic scenarios.
