@@ -8,7 +8,9 @@ from dataclasses import dataclass
 API_URL = "https://api.anthropic.com/v1/messages"
 DEFAULT_MODEL = "claude-haiku-5-5"  # verify the current model name in your Anthropic console
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-DEFAULT_GEMINI = "gemini-2.5-flash-lite"  # free-tier model names change: check Google AI Studio and override in secrets
+DEFAULT_GEMINI = "gemini-flash-latest"  # model names are retired often; on a 404 the app asks Google which text models your key can use
+GEMINI_LIST_URL = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200"
+_MODEL_CACHE = {}
 NAMES = {"claude": "Claude", "gemini": "Gemini"}
 PATTERNS = {"fan_in": "many senders paying one account", "cycle": "funds returning to their origin through a loop of accounts",
             "slow_accumulation": "dispersed payments accumulating in a recently opened account"}
@@ -84,6 +86,34 @@ def check_grounding(text, facts):
     return True, ""
 
 
+def _default_list(url, headers):
+    import requests
+    r = requests.get(url, headers=headers, timeout=30)
+    try:
+        return r.status_code, r.json()
+    except ValueError:
+        return r.status_code, {}
+
+
+def pick_gemini_model(models):
+    """Cheapest current text model from a ListModels answer: stable flash-lite, then stable flash, then previews, newest first."""
+    banned = ("image", "tts", "embedding", "live", "audio", "robotics", "computer", "imagen", "veo", "learnlm", "gemma", "aqa")
+    best = None
+    for m in models:
+        name = str(m.get("name", "")).replace("models/", "")
+        if not name.startswith("gemini-") or "generateContent" not in m.get("supportedGenerationMethods", []):
+            continue
+        if any(b in name for b in banned):
+            continue
+        pre = "preview" in name or "exp" in name
+        rank = (0 if "flash-lite" in name else 1 if "flash" in name else 4) + (2 if pre and "flash" in name else 0)
+        v = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
+        key = (rank, -(float(v.group(1)) if v else 0), name)
+        if best is None or key < best[0]:
+            best = (key, name)
+    return best[1] if best else None
+
+
 def _default_http(url, headers, body):
     import requests
     r = requests.post(url, headers=headers, json=body, timeout=40)
@@ -93,17 +123,26 @@ def _default_http(url, headers, body):
         return r.status_code, {}
 
 
-def summarize(facts, cfg=None, http=_default_http):
+def summarize(facts, cfg=None, http=_default_http, lister=_default_list):
     """Always returns something usable: the model's checked summary, or the fixed template with the reason."""
     fallback = lambda note: dict(text=template_summary(facts), source="template", note=note, facts=facts)
     if cfg is None or not cfg.api_key:
         return fallback("No API key is configured.")
     try:
         if cfg.provider == "gemini":
-            status, body = http(GEMINI_URL.format(model=cfg.model), {"x-goog-api-key": cfg.api_key, "content-type": "application/json"},
-                                {"systemInstruction": {"parts": [{"text": SYSTEM}]},
-                                 "contents": [{"role": "user", "parts": [{"text": json.dumps(facts)}]}],
-                                 "generationConfig": {"maxOutputTokens": 700}})
+            def ask(model):
+                return http(GEMINI_URL.format(model=model), {"x-goog-api-key": cfg.api_key, "content-type": "application/json"},
+                            {"systemInstruction": {"parts": [{"text": SYSTEM}]},
+                             "contents": [{"role": "user", "parts": [{"text": json.dumps(facts)}]}],
+                             "generationConfig": {"maxOutputTokens": 700}})
+            model = _MODEL_CACHE.get(cfg.model, cfg.model)
+            status, body = ask(model)
+            if status == 404:  # retired or unavailable model name: let Google tell us what this key can use
+                ls, lb = lister(GEMINI_LIST_URL, {"x-goog-api-key": cfg.api_key})
+                found = pick_gemini_model(lb.get("models", [])) if ls == 200 and isinstance(lb, dict) else None
+                if found and found != model:
+                    _MODEL_CACHE[cfg.model] = found
+                    status, body = ask(found)
         else:
             status, body = http(API_URL, {"x-api-key": cfg.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
                                 {"model": cfg.model, "max_tokens": 450, "system": SYSTEM,
@@ -112,7 +151,7 @@ def summarize(facts, cfg=None, http=_default_http):
         return fallback(f"The AI service was unreachable ({type(e).__name__}); template shown.")
     if status != 200:
         msg = (body.get("error", {}) or {}).get("message", "") if isinstance(body, dict) else ""
-        return fallback(f"The AI service returned HTTP {status}{': ' + str(msg)[:120] if msg else ''}; template shown.")
+        return fallback(f"The AI service returned HTTP {status}{': ' + str(msg)[:300] if msg else ''}; template shown.")
     try:
         if cfg.provider == "gemini":
             text = "".join(p.get("text", "") for p in body["candidates"][0]["content"]["parts"]).strip()
