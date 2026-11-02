@@ -38,6 +38,15 @@ class FlowMapWhy(unittest.TestCase):
         late = build_geometry(self.wb.tx, self.wb.acc, a, self.wb.now)
         self.assertLess(len(early["senders"]), len(late["senders"]))
 
+    def test_long_hub_id_and_outside_names(self):
+        import pandas as pd
+        tx = pd.DataFrame([dict(src="OUTSIDE:T1900", dst="ARFR9M2V4KM6J", amount=5000.0, day=30), dict(src="VLXK8D7S5DQ7W", dst="ARFR9M2V4KM6J", amount=300.0, day=43)])
+        acc = pd.DataFrame({"account": ["OUTSIDE:T1900", "ARFR9M2V4KM6J", "VLXK8D7S5DQ7W"], "opened_day": -1000, "label": ["external", "live", "live"], "role": "live"})
+        svg = to_svg(build_geometry(tx, acc, "ARFR9M2V4KM6J", 43, window=60))
+        ET.fromstring(svg)
+        self.assertIn("Outside (T1900)", svg); self.assertNotIn("OUTSIDE:T1900", svg)
+        self.assertNotIn(">ARFR9M2V4KM6J</text><", svg.split("account</text>")[0])  # id is not printed inside the circle
+
     def test_empty_period_does_not_crash(self):
         ET.fromstring(to_svg(build_geometry(self.wb.tx, self.wb.acc, "C0001", 3)))
 
