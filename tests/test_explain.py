@@ -85,3 +85,38 @@ class GeminiPath(unittest.TestCase):
         for resp in ((200, {}), (200, {"candidates": []}), (429, {"error": {"message": "quota"}}),
                      (200, {"candidates": [{"content": {"parts": [{"text": GOOD.replace("26", "99")}]}}]})):
             self.assertEqual(summarize(FACTS, self.cfg, lambda *a, r=resp: r)["source"], "template")
+
+
+class GeminiModelDiscovery(unittest.TestCase):
+    cfg = AIConfig("g-key", "retired-model", "gemini")
+    LIST = {"models": [
+        {"name": "models/gemini-2.0-flash", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3.1-flash-lite-preview", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3-flash", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3-flash-image", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-embedding-001", "supportedGenerationMethods": ["embedContent"]},
+        {"name": "models/gemma-3-27b", "supportedGenerationMethods": ["generateContent"]}]}
+
+    def test_picker_prefers_stable_flash_and_skips_non_text_models(self):
+        from src.explain import pick_gemini_model
+        self.assertEqual(pick_gemini_model(self.LIST["models"]), "gemini-3-flash")
+        self.assertIsNone(pick_gemini_model([{"name": "models/gemini-embedding-001", "supportedGenerationMethods": ["embedContent"]}]))
+
+    def test_404_triggers_discovery_then_a_single_retry(self):
+        from src import explain
+        explain._MODEL_CACHE.clear()
+        urls = []
+        def http(url, headers, body):
+            urls.append(url)
+            return (404, {"error": {"message": "no longer available"}}) if "retired-model" in url else (200, {"candidates": [{"content": {"parts": [{"text": GOOD}]}}]})
+        r = summarize(FACTS, self.cfg, http, lister=lambda url, headers: (200, self.LIST))
+        self.assertEqual(r["source"], "gemini"); self.assertEqual(len(urls), 2); self.assertIn("gemini-3-flash", urls[1])
+        urls.clear(); summarize(FACTS, self.cfg, http, lister=lambda *a: (200, self.LIST))
+        self.assertEqual(len(urls), 1)  # the discovered name is remembered
+
+    def test_discovery_is_not_used_for_other_errors_and_failures_fall_back(self):
+        from src import explain
+        explain._MODEL_CACHE.clear()
+        def lister(*a): raise AssertionError("should not be called")
+        self.assertEqual(summarize(FACTS, self.cfg, lambda *a: (429, {}), lister=lister)["source"], "template")
+        self.assertEqual(summarize(FACTS, self.cfg, lambda *a: (404, {}), lister=lambda *a: (403, {}))["source"], "template")
