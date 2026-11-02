@@ -9,6 +9,10 @@ FRAME = 580  # iframe height used by the dashboard
 NEW, OLD, OUTSIDE = "#D93025", "#1E8E3E", "#5A6B85"
 
 
+def _name(i):
+    return f"Outside ({i.split(':', 1)[1]})" if i.startswith("OUTSIDE:") else i
+
+
 def _k(v):
     return f"{v / 1000:.1f}k" if v >= 1000 else f"{v:.0f}"
 
@@ -85,17 +89,21 @@ def to_svg(geo, hub_color="#003087"):
             p.append(f'<path class="base" d="{d_}" stroke="{c}" stroke-width="{_width(s_["amount"]):.1f}"/>')
             p.append(f'<path class="flow{" pulse" if s_["recent"] else ""}" d="{d_}" stroke="{c}" stroke-width="{_width(s_["amount"]) * .9:.1f}" opacity="{.98 if s_["recent"] else .7}"{" filter=\'url(#glow)\'" if s_["recent"] else ""}/>')
             p.append(f'<circle cx="{sx}" cy="{s_["y"]:.0f}" r="{10 if not s_.get("more") else 14}" fill="{c}"/>')
-            p.append(f'<text x="{sx - 18}" y="{s_["y"] + 4:.0f}" font-size="12" text-anchor="end">{html.escape(s_["id"])} · {_k(s_["amount"])}</text>')
+            p.append(f'<text x="{sx - 18}" y="{s_["y"] + 4:.0f}" font-size="12" text-anchor="end">{html.escape(_name(s_["id"]))} · {_k(s_["amount"])}</text>')
         for o_ in geo["outs"]:
             d_ = _bez(hx + 36, hy, ox - 14, o_["y"])
             p.append(f'<path class="base" d="{d_}" stroke="{OUTSIDE}" stroke-width="{_width(o_["amount"]):.1f}"/>')
             p.append(f'<path class="flow" d="{d_}" stroke="{OUTSIDE}" stroke-width="{_width(o_["amount"]) * .9:.1f}" opacity=".85"/>')
             p.append(f'<rect x="{ox - 14}" y="{o_["y"] - 12:.0f}" width="24" height="24" rx="5" fill="{OUTSIDE}"/>')
-            p.append(f'<text x="{ox + 20}" y="{o_["y"] - 1:.0f}" font-size="12">{html.escape(o_["id"])} · {_k(o_["amount"])}</text>')
+            p.append(f'<text x="{ox + 20}" y="{o_["y"] - 1:.0f}" font-size="12">{html.escape(_name(o_["id"]))} · {_k(o_["amount"])}</text>')
             if o_["outside"]:
                 p.append(f'<text x="{ox + 20}" y="{o_["y"] + 14:.0f}" font-size="11" style="fill:#5A6B85">outside bank</text>')
         p.append(f'<circle cx="{hx}" cy="{hy}" r="36" fill="{hub_color}" stroke="#fff" stroke-width="4" filter="url(#glow)"/>')
-        p.append(f'<text x="{hx}" y="{hy + 4}" font-size="12" text-anchor="middle" font-weight="700" style="fill:#fff">{html.escape(geo["hub"])}</text>')
+        if len(geo["hub"]) <= 9:
+            p.append(f'<text x="{hx}" y="{hy + 4}" font-size="12" text-anchor="middle" font-weight="700" style="fill:#fff">{html.escape(geo["hub"])}</text>')
+        else:  # a long account id would spill out of the circle: print it underneath instead
+            p.append(f'<text x="{hx}" y="{hy + 4}" font-size="11" text-anchor="middle" font-weight="700" style="fill:#fff">account</text>')
+            p.append(f'<text x="{hx}" y="{hy + 58}" font-size="12" text-anchor="middle" font-weight="700">{html.escape(geo["hub"])}</text>')
         if not geo["senders"]:
             p.append(f'<text x="{hx}" y="{hy + 70}" font-size="14" text-anchor="middle">No inflow in this period</text>')
     p.append(f'<text x="{W / 2}" y="{H - 40}" font-size="14" text-anchor="middle" font-weight="600">{html.escape(geo["stats"])} · day {geo["day"]}</text>')
