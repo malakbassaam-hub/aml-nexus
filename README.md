@@ -1,4 +1,6 @@
 # AML-Nexus
+![tests](https://github.com/malakbassaam-hub/aml-nexus/actions/workflows/tests.yml/badge.svg)
+
 **Catch the criminals. Protect everyone else.**
 
 An AML compliance copilot prototype. It detects laundering patterns in a transaction graph (fan-in "smurfing", closed loops),
@@ -36,6 +38,11 @@ python -m src.evaluate
 - Planted laundering accounts flagged for Monitor/Escalate: ~99.7% (worst seed 96.6%).
 - Innocent accounts at freeze-level (Escalate): 0. Innocents sent to Verify: ~10 per seed; to Monitor: ~6 per seed (mostly charities and emergency fundraisers).
 - A naive count-based rule at matched detection rate flagged ~35 innocents per seed, and could not reach our detection rate in 6 of 10 seeds.
+
+## More in the dashboard
+- **Evaluation tab:** the saved evaluation numbers (held-out runs, per-run charts, sensitivity, known limits), read from `docs/*.json`.
+- **Case report:** prepare and download a printable report with a SHA-256 fingerprint (open it, then Print, Save as PDF).
+- **Roadmap:** what is done, partial or planned is listed honestly in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Evidence ledger: what it is and what it is not
 A small naive-Bayes model whose inputs each add or subtract decibans of evidence (`python -m src.train_ledger`; weights in `docs/ledger_model.json`).

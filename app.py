@@ -11,8 +11,10 @@ import streamlit.components.v1 as components
 from src.paypal_client import (SAMPLE_RESPONSE, PayPalConfig, accounts_for, analyze, default_origin, fetch_last_days, get_token,
                                to_edges)
 from src.benford import to_svg as benford_svg
+from src import evalview
 from src.explain import DEFAULT_GEMINI, NAMES, AIConfig, facts_from_case, facts_from_packet, summarize
 from src.flowmap import FRAME, build_geometry, to_svg, wrap_html
+from src.report import case_report_html
 from src.service import SCENARIOS, TIER_COLORS, Workbench
 from src.why import breakdown, decision_path, what_would_change
 from src.watch import CAPS
@@ -110,8 +112,8 @@ with st.sidebar:
 
 q = wb.queue(reveal)
 n_watch = sum(1 for a in wb.watches if a not in wb.closed)
-tab_q, tab_w, tab_r, tab_p, tab_a = st.tabs(
-    ["🔎 Case queue", f"🛰️ Evidence Watch ({n_watch})", "📊 Reviewer quality", "🔌 PayPal Sandbox", "🧾 Audit log"])
+tab_q, tab_w, tab_r, tab_e, tab_p, tab_a = st.tabs(
+    ["🔎 Case queue", f"🛰️ Evidence Watch ({n_watch})", "📊 Reviewer quality", "📈 Evaluation", "🔌 PayPal Sandbox", "🧾 Audit log"])
 
 # ------------------------------------------------------------- case queue
 with tab_q:
@@ -135,6 +137,13 @@ with tab_q:
             m1.metric("Suspicion", f"{row.suspicion:.2f}")
             m2.metric("Counter-evidence", f"{row.counter:.2f}")
             m3.metric("System recommends", row.tier)
+            rc1, rc2 = st.columns([1, 3])
+            if rc1.button("📄 Prepare case report", key=f"rep_{acct}_{wb.now}"):
+                st.session_state.setdefault("reports", {})[(acct, wb.now)] = case_report_html(wb, acct, TIER_COLORS.get(row.tier, "#003087"))
+            rep = st.session_state.get("reports", {}).get((acct, wb.now))
+            if rep:
+                rc2.download_button("⬇️ Download report (open it, then Print → Save as PDF)", rep, file_name=f"AML-Nexus_case_{acct}_day{wb.now}.html",
+                                    mime="text/html", key=f"dl_{acct}_{wb.now}")
             c_for, c_against = st.columns(2)
             with c_for:
                 st.markdown("#### 🔴 Evidence for suspicion")
@@ -295,6 +304,44 @@ with tab_r:
             + ("  →  POSSIBLE RUBBER-STAMPING" if r["possible_rubber_stamping"] else ""))
     if rep:
         st.dataframe(pd.DataFrame(rep).T, use_container_width=True)
+
+# --------------------------------------------------------------- evaluation
+with tab_e:
+    ev = evalview.load()
+    res = ev["results"]
+    st.markdown("### Evaluation (synthetic data)")
+    st.warning("Read this first: the data generator and the detectors were written by the same authors, so these numbers are optimistic. "
+               "They show that the pipeline works and where it fails, not how it would perform at a real bank.")
+    if res is None:
+        st.info("No evaluation file found. Run `python -m src.evaluate`.")
+    else:
+        st.markdown("#### 10 held-out synthetic runs (not used for tuning)")
+        st.dataframe(evalview.headline(res), hide_index=True, use_container_width=True)
+        st.markdown("#### What counter-evidence changes")
+        st.dataframe(evalview.counter_evidence_effect(res), hide_index=True, use_container_width=True)
+        st.caption("Counter-evidence does not remove innocents from review. It moves them from being watched (Monitor) to being contacted (Verify).")
+        ps = evalview.per_seed(res)
+        e1, e2 = st.columns(2)
+        e1.markdown("**Planted laundering found, per run**")
+        e1.bar_chart(ps[["recall"]])
+        e2.markdown("**Innocent accounts flagged, per run**")
+        e2.bar_chart(ps[["inn_verify", "inn_monitor", "inn_escalate", "base_inn"]])
+        st.markdown("#### Sensitivity to the counter-evidence cut-off (development runs)")
+        st.dataframe(evalview.sensitivity(res), use_container_width=True)
+        st.caption("Detection of evasive rings jumps sharply between two nearby cut-offs: a sign of brittleness that real data would test harder.")
+        if ev["ledger_results"]:
+            ls = evalview.ledger_summary(ev["ledger_results"])
+            st.markdown("#### Evidence ledger (statistical model) vs rules")
+            l1, l2, l3 = st.columns(3)
+            l1.metric("Planted accounts found: model", f"{ls['model_found']} of {ls['positives']}")
+            l2.metric("Planted accounts found: rules", f"{ls['rules_found']} of {ls['positives']}")
+            l3.metric("Innocents flagged: model / rules", f"{ls['model_false']} / {ls['rules_false']} of {ls['negatives']}")
+            st.caption("The model's perfect separation mostly shows that synthetic laundering is easy to tell apart. Real use needs a bank's own labelled outcomes.")
+        st.markdown("#### Reproduce")
+        st.code("python -m unittest discover -s tests -t .\npython -m src.evaluate\npython -m src.train_ledger", language="bash")
+        st.markdown("#### Known limits")
+        for lim in evalview.KNOWN_LIMITS:
+            st.markdown(f"- {lim}")
 
 # ------------------------------------------------------------ PayPal Sandbox
 with tab_p:
